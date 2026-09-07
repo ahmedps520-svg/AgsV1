@@ -7,7 +7,21 @@ Live site: <https://ahmedps520-svg.github.io/AgsV1/>
 
 ---
 
-## 1. The site as published today — demo mode
+## 0. One-time: switch Pages on
+
+GitHub only lets a repository **administrator** enable Pages, and the workflow's token
+does not have that right on a personal repository — so this is a single click in the
+browser:
+
+1. Open **Settings → Pages** on the repository.
+2. Under *Build and deployment*, set **Source** to **GitHub Actions**.
+3. Go to **Actions → Deploy to GitHub Pages → Run workflow** (or push any commit).
+
+The site appears at <https://ahmedps520-svg.github.io/AgsV1/> a minute later. Until this
+is done, the workflow still builds and lints on every push, but skips the deploy with a
+warning.
+
+## 1. The site as published — demo mode
 
 With no Supabase variables configured, the workflow builds the **demo**: a full school in
 the visitor's browser, with per-tab sign-in so one person can play teacher, parent and

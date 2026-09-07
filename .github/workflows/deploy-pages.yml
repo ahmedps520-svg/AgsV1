@@ -1,5 +1,12 @@
 # Builds the static export and publishes it to GitHub Pages on every push to
-# main. The first run also enables Pages on the repository.
+# main.
+#
+# ONE-TIME SETUP: GitHub only lets a repository administrator turn Pages on,
+# and the workflow token does not have that right on a personal repository.
+# Once, in the browser: Settings → Pages → "Build and deployment" → Source →
+# "GitHub Actions". After that every run deploys automatically. Until then
+# the build still runs and the artifact is kept, but the deploy job is
+# skipped with a notice.
 #
 # To point the site at a real Supabase project instead of the built-in demo,
 # add these repository *variables* (Settings → Secrets and variables → Actions
@@ -29,6 +36,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      pages_enabled: ${{ steps.pages.outcome == 'success' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -44,17 +53,20 @@ jobs:
           npm run lint
           npx tsc --noEmit
 
-      - name: Enable Pages and read its base path
+      - name: Read Pages configuration
         id: pages
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
+        # Fails only when Pages has not been switched on yet (see the note at
+        # the top of this file). The build below still runs so the artifact is
+        # ready the moment it is.
+        continue-on-error: true
 
       - name: Build static export
         env:
-          # configure-pages reports e.g. "/AgsV1" for a project site.
-          NEXT_PUBLIC_BASE_PATH: ${{ steps.pages.outputs.base_path }}
-          NEXT_PUBLIC_SITE_URL: ${{ steps.pages.outputs.origin }}${{ steps.pages.outputs.base_path }}
+          # configure-pages reports "/AgsV1" for this project site; fall back
+          # to the same value when Pages is not enabled yet.
+          NEXT_PUBLIC_BASE_PATH: ${{ steps.pages.outputs.base_path || '/AgsV1' }}
+          NEXT_PUBLIC_SITE_URL: ${{ steps.pages.outputs.origin || 'https://ahmedps520-svg.github.io' }}${{ steps.pages.outputs.base_path || '/AgsV1' }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
         run: npm run build
@@ -63,8 +75,14 @@ jobs:
         with:
           path: out
 
+      - name: Pages not enabled yet
+        if: steps.pages.outcome != 'success'
+        run: |
+          echo "::warning title=GitHub Pages is not enabled::Open Settings → Pages and set Source to 'GitHub Actions', then re-run this workflow. The site was built and is ready to publish."
+
   deploy:
     needs: build
+    if: needs.build.outputs.pages_enabled == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

@@ -183,6 +183,18 @@ supabase/
 scripts/            icon generation from the crest, service-worker prep
 ```
 
+## Live site
+
+Published to GitHub Pages at **<https://ahmedps520-svg.github.io/AgsV1/>**.
+
+With no Supabase project configured the site runs in **demo mode**: a complete
+school lives in the visitor's browser, and each browser tab keeps its own
+sign-in — so open the teacher in one tab, a parent in another and the lobby
+board in a third, and watch a call move all three at once.
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for the one-time Pages source setting and
+for connecting a real Supabase project.
+
 ## Deployment
 
 See **[DEPLOYMENT.md](./DEPLOYMENT.md)**.

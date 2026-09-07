@@ -7,19 +7,26 @@ Live site: <https://ahmedps520-svg.github.io/AgsV1/>
 
 ---
 
-## 0. One-time: switch Pages on
+## 0. One-time: choose how Pages serves the site
 
-GitHub only lets a repository **administrator** enable Pages, and the workflow's token
-does not have that right on a personal repository — so this is a single click in the
-browser:
+Open **Settings → Pages → Build and deployment → Source** and pick either:
 
-1. Open **Settings → Pages** on the repository.
-2. Under *Build and deployment*, set **Source** to **GitHub Actions**.
-3. Go to **Actions → Deploy to GitHub Pages → Run workflow** (or push any commit).
+| Source | Then set | What happens |
+| --- | --- | --- |
+| **GitHub Actions** *(recommended)* | nothing else | The `deploy` job in `.github/workflows/deploy-pages.yml` publishes each build. |
+| **Deploy from a branch** | branch **`gh-pages`**, folder **`/ (root)`** | Every run force-pushes the built site to `gh-pages`, and GitHub serves it. |
 
-The site appears at <https://ahmedps520-svg.github.io/AgsV1/> a minute later. Until this
-is done, the workflow still builds and lints on every push, but skips the deploy with a
-warning.
+> **Do not** point "Deploy from a branch" at **`main`**. That branch holds the
+> source, so GitHub's built-in Jekyll builder publishes the README instead of
+> the app — which looks like "Pages is on but the site is wrong".
+
+The `gh-pages` branch is created automatically by the first workflow run, so it
+is available in the branch dropdown straight away.
+
+The site then appears at <https://ahmedps520-svg.github.io/AgsV1/>.
+
+While you are in the settings, set **Settings → General → Default branch** to
+`main` so pull requests and clones start from the right place.
 
 ## 1. The site as published — demo mode
 

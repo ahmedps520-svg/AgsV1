@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { useRequireRole } from "@/components/auth/require-role";
 import { homePathForRole } from "@/lib/api/session";
 import { useI18n } from "@/lib/i18n/provider";
@@ -9,6 +7,7 @@ import { AccountForms } from "@/components/account/account-forms";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { LanguageToggle } from "@/components/language-toggle";
 import { Logo } from "@/components/logo";
+import { BackLink } from "@/components/layout/back-link";
 import { BootScreen } from "@/components/boot-screen";
 
 export default function AccountPage() {
@@ -23,13 +22,7 @@ export default function AccountPage() {
         <Logo schoolName={session.school?.name} compact />
         <div className="flex items-center gap-2">
           <LanguageToggle />
-          <Link
-            href={homePathForRole(session.profile.role)}
-            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[13px] font-medium text-[var(--color-muted)] transition hover:bg-black/5 hover:text-[var(--color-ink)] dark:hover:bg-white/10"
-          >
-            <ArrowLeft className="size-4 rtl:rotate-180" />
-            {t("common.back")}
-          </Link>
+          <BackLink href={homePathForRole(session.profile.role)} />
         </div>
       </div>
 

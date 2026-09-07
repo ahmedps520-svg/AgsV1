@@ -22,6 +22,7 @@ const en = {
   "common.done": "Done",
   "common.close": "Close",
   "common.back": "Back",
+  "common.backToBoards": "Class boards",
   "common.search": "Search",
   "common.undo": "Undo",
   "common.yes": "Yes",
@@ -48,7 +49,6 @@ const en = {
   "role.admin": "Administrator",
   "role.staff": "Teacher",
   "role.parent": "Parent",
-  "role.display": "Classroom screen",
 
   // ---- landing -----------------------------------------------------------
   "landing.headline": "Dismissal that runs itself.",
@@ -89,13 +89,11 @@ const en = {
   "login.accountsNote": "Accounts are issued by the school office.",
   "login.demo.title": "Explore the demo",
   "login.demo.body":
-    "Pick a role to sign in instantly. Each browser tab keeps its own sign-in, so open the teacher here and a parent in a second tab.",
+    "Pick a role to sign in instantly. Each browser tab keeps its own sign-in, so open a teacher here and a parent in a second tab.",
   "login.demo.blurb.admin": "Manage classes, students and settings.",
   "login.demo.blurb.staff": "Homeroom teacher of 7b1 — open the class board.",
   "login.demo.blurb.staffGirls": "Homeroom teacher of 5g1 — the girls' section.",
-  "login.demo.blurb.display": "A classroom screen: watches a board, cannot change it.",
   "login.demo.blurb.parent": "Mother of Ahmed (7b1), Salman (3b1) and Noura (5g1).",
-  "login.demo.blurb.driver": "Authorised driver for the AlShehri family.",
   "login.demo.wrongAccount": "Pick one of the demo accounts listed below to explore the app.",
   "login.failed": "That email and password don't match. Please try again.",
 
@@ -129,7 +127,6 @@ const en = {
   "board.callManuallyHint": "Guardian arrived without the app",
   "board.empty": "No students in this class yet",
   "board.emptyHint": "Add students to {code} from the Students page.",
-  "board.readOnly": "View only",
   "board.fullscreen": "Fullscreen",
   "board.exitFullscreen": "Exit fullscreen",
   "board.chimeOn": "Chime on",
@@ -279,7 +276,7 @@ const en = {
 
   // ---- people admin ------------------------------------------------------
   "people.title": "People",
-  "people.subtitle": "Teachers, administrators, parents, drivers and classroom screens.",
+  "people.subtitle": "Administrators, teachers and parents. A driver is a parent account linked to a student — set the relationship on the Students page.",
   "people.searchPlaceholder": "Search people…",
   "people.allRoles": "All roles",
   "people.addPerson": "Add person",
@@ -289,7 +286,7 @@ const en = {
   "people.canCollect": "Can collect: {names}",
   "people.noneLinked": "No students linked — link them from the Students page",
   "people.createTitle": "Add a person",
-  "people.createBody": "Create a login for a teacher, a parent, an authorised driver, or a classroom screen.",
+  "people.createBody": "Create a login for an administrator, a teacher, or a parent.",
   "people.fullName": "Full name",
   "people.email": "Email address",
   "people.emailHint": "This is their sign-in name.",
@@ -305,8 +302,7 @@ const en = {
   "people.updated": "Account updated",
   "people.roleHint.admin": "Full access: classes, students, accounts, settings and every board.",
   "people.roleHint.staff": "Opens class boards and dismisses students. Cannot change accounts or settings.",
-  "people.roleHint.parent": "Sees only the children linked to them, and can call them from the parent app.",
-  "people.roleHint.display": "Read-only account for a screen in a classroom. Cannot change a board.",
+  "people.roleHint.parent": "Sees only the children linked to them, and can call them. Drivers use this role too.",
   "people.passwordNote":
     "Passwords are changed by the account holder from their own account page, or reset from the sign-in screen.",
 
@@ -393,6 +389,7 @@ const ar: Record<MessageKey, string> = {
   "common.done": "تم",
   "common.close": "إغلاق",
   "common.back": "رجوع",
+  "common.backToBoards": "لوحات الفصول",
   "common.search": "بحث",
   "common.undo": "تراجع",
   "common.yes": "نعم",
@@ -418,7 +415,6 @@ const ar: Record<MessageKey, string> = {
   "role.admin": "مدير النظام",
   "role.staff": "معلم",
   "role.parent": "ولي أمر",
-  "role.display": "شاشة الفصل",
 
   "landing.headline": "انصراف يُدير نفسه.",
   "landing.lede":
@@ -461,9 +457,7 @@ const ar: Record<MessageKey, string> = {
   "login.demo.blurb.admin": "إدارة الفصول والطلاب والإعدادات.",
   "login.demo.blurb.staff": "معلم فصل 7b1 — افتح لوحة الفصل.",
   "login.demo.blurb.staffGirls": "معلمة فصل 5g1 — قسم البنات.",
-  "login.demo.blurb.display": "شاشة فصل: تعرض اللوحة ولا تغيّرها.",
   "login.demo.blurb.parent": "والدة أحمد (7b1) وسلمان (3b1) ونورة (5g1).",
-  "login.demo.blurb.driver": "سائق مفوّض لعائلة الشهري.",
   "login.demo.wrongAccount": "اختر أحد الحسابات التجريبية أدناه لاستكشاف التطبيق.",
   "login.failed": "البريد أو كلمة المرور غير صحيحة. حاول مرة أخرى.",
 
@@ -495,7 +489,6 @@ const ar: Record<MessageKey, string> = {
   "board.callManuallyHint": "وصل ولي الأمر بدون التطبيق",
   "board.empty": "لا يوجد طلاب في هذا الفصل بعد",
   "board.emptyHint": "أضف الطلاب إلى {code} من صفحة الطلاب.",
-  "board.readOnly": "عرض فقط",
   "board.fullscreen": "ملء الشاشة",
   "board.exitFullscreen": "الخروج من ملء الشاشة",
   "board.chimeOn": "التنبيه مفعّل",
@@ -639,7 +632,7 @@ const ar: Record<MessageKey, string> = {
   "classes.openBoard": "فتح اللوحة",
 
   "people.title": "المستخدمون",
-  "people.subtitle": "المعلمون والمديرون وأولياء الأمور والسائقون وشاشات الفصول.",
+  "people.subtitle": "المديرون والمعلمون وأولياء الأمور. السائق هو حساب ولي أمر مرتبط بطالب — حدّد صلة القرابة من صفحة الطلاب.",
   "people.searchPlaceholder": "ابحث عن مستخدم…",
   "people.allRoles": "كل الأدوار",
   "people.addPerson": "إضافة مستخدم",
@@ -649,7 +642,7 @@ const ar: Record<MessageKey, string> = {
   "people.canCollect": "يستلم: {names}",
   "people.noneLinked": "لا يوجد طلاب مرتبطون — اربطهم من صفحة الطلاب",
   "people.createTitle": "إضافة مستخدم",
-  "people.createBody": "أنشئ حساباً لمعلم أو ولي أمر أو سائق مفوّض أو شاشة فصل.",
+  "people.createBody": "أنشئ حساباً لمدير أو معلم أو ولي أمر.",
   "people.fullName": "الاسم الكامل",
   "people.email": "البريد الإلكتروني",
   "people.emailHint": "هذا هو اسم الدخول.",
@@ -665,8 +658,7 @@ const ar: Record<MessageKey, string> = {
   "people.updated": "تم تحديث الحساب",
   "people.roleHint.admin": "صلاحية كاملة: الفصول والطلاب والحسابات والإعدادات وكل اللوحات.",
   "people.roleHint.staff": "يفتح لوحات الفصول ويسجّل الانصراف. لا يغيّر الحسابات أو الإعدادات.",
-  "people.roleHint.parent": "يرى أبناءه فقط ويستطيع نداءهم من تطبيق أولياء الأمور.",
-  "people.roleHint.display": "حساب للعرض فقط على شاشة الفصل. لا يغيّر اللوحة.",
+  "people.roleHint.parent": "يرى أبناءه فقط ويستطيع نداءهم. السائقون يستخدمون هذا الدور أيضاً.",
   "people.passwordNote":
     "يغيّر صاحب الحساب كلمة مروره من صفحة حسابه، أو يعيد تعيينها من شاشة تسجيل الدخول.",
 

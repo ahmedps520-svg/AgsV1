@@ -4,10 +4,8 @@ import * as React from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowLeftRight,
   CircleUser,
   DoorOpen,
-  Eye,
   Maximize2,
   Megaphone,
   Minimize2,
@@ -35,6 +33,7 @@ import { playChime, unlockAudio } from "@/components/board/chime";
 import { useToast } from "@/components/ui/toast";
 import { LiveDot } from "@/components/ui/primitives";
 import { rememberClass } from "@/components/board/class-picker";
+import { BackLink } from "@/components/layout/back-link";
 import type { DismissalQueueRow, StudentRow } from "@/lib/types/database";
 
 const NO_ROWS: DismissalQueueRow[] = [];
@@ -57,7 +56,6 @@ export function ClassBoard({ session, code }: { session: Session; code: string }
   const { t, locale } = useI18n();
   const toast = useToast();
   const school = session.school!;
-  const canAct = session.profile.role !== "display";
   const today = schoolToday(school.timezone);
 
   const loadRoom = React.useCallback(() => getClassroomByCode(school.id, code), [school.id, code]);
@@ -147,7 +145,9 @@ export function ClassBoard({ session, code }: { session: Session; code: string }
   /* ---------------------------------------------------------- fullscreen */
 
   const [fullscreen, setFullscreen] = React.useState(false);
-  const [idleChrome, setIdleChrome] = React.useState(false);
+  const [idleAt, setIdleAt] = React.useState(false);
+  // Controls only fade on an unattended fullscreen board; at a desk they stay.
+  const idleChrome = fullscreen && idleAt;
 
   React.useEffect(() => {
     const onChange = () => setFullscreen(Boolean(document.fullscreenElement));
@@ -156,12 +156,13 @@ export function ClassBoard({ session, code }: { session: Session; code: string }
   }, []);
 
   React.useEffect(() => {
-    if (canAct) return; // Teachers need the controls; only screens hide them.
-    let timer = window.setTimeout(() => setIdleChrome(true), 6000);
+    if (!fullscreen) return;
+
+    let timer = window.setTimeout(() => setIdleAt(true), 6000);
     const wake = () => {
-      setIdleChrome(false);
+      setIdleAt(false);
       window.clearTimeout(timer);
-      timer = window.setTimeout(() => setIdleChrome(true), 6000);
+      timer = window.setTimeout(() => setIdleAt(true), 6000);
     };
     window.addEventListener("mousemove", wake);
     window.addEventListener("keydown", wake);
@@ -172,7 +173,7 @@ export function ClassBoard({ session, code }: { session: Session; code: string }
       window.removeEventListener("keydown", wake);
       window.removeEventListener("touchstart", wake);
     };
-  }, [canAct]);
+  }, [fullscreen]);
 
   async function toggleFullscreen() {
     try {
@@ -217,13 +218,12 @@ export function ClassBoard({ session, code }: { session: Session; code: string }
         <LogoMark className="size-16" />
         <p className="code mt-6 text-4xl font-extrabold">{code}</p>
         <p className="mt-3 max-w-md text-lg text-[var(--board-muted)]">{t("picker.noClass")}</p>
-        <Link
+        <BackLink
           href="/board/"
-          className="mt-8 inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold hover:bg-white/[0.16]"
-        >
-          <ArrowLeftRight className="size-4" />
-          {t("picker.changeClass")}
-        </Link>
+          labelKey="picker.changeClass"
+          tone="dark"
+          className="mt-8 px-4 py-2.5 text-sm font-semibold"
+        />
       </div>
     );
   }
@@ -259,13 +259,7 @@ export function ClassBoard({ session, code }: { session: Session; code: string }
             )}
           >
             <LanguageToggle tone="dark" />
-            <Link
-              href="/board/"
-              className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-[13px] font-semibold hover:bg-white/[0.16]"
-            >
-              <ArrowLeftRight className="size-4" />
-              {t("picker.changeClass")}
-            </Link>
+            <BackLink href="/board/" labelKey="picker.changeClass" tone="dark" className="px-3 py-2 text-[13px] font-semibold" />
             <button
               type="button"
               onClick={() => {
@@ -316,12 +310,6 @@ export function ClassBoard({ session, code }: { session: Session; code: string }
           <span className="tabular">{counts.dismissed}</span>
           <span className="font-medium text-[var(--board-muted)]">{t("board.dismissed")}</span>
         </span>
-        {!canAct ? (
-          <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-2 py-1 text-[12px] font-semibold uppercase tracking-wider text-[var(--board-muted)]">
-            <Eye className="size-3.5" />
-            {t("board.readOnly")}
-          </span>
-        ) : null}
       </div>
 
       {/* ------------------------------------------------------------- tiles */}
@@ -374,7 +362,7 @@ export function ClassBoard({ session, code }: { session: Session; code: string }
                         {t(state === "called" ? "board.called" : state === "dismissed" ? "board.dismissed" : "board.inClass")}
                       </span>
 
-                      {canAct && state === "called" && request ? (
+                      {state === "called" && request ? (
                         <button
                           type="button"
                           disabled={busy}
@@ -389,7 +377,7 @@ export function ClassBoard({ session, code }: { session: Session; code: string }
                         </button>
                       ) : null}
 
-                      {canAct && state === "dismissed" && request ? (
+                      {state === "dismissed" && request ? (
                         <button
                           type="button"
                           disabled={busy}
@@ -403,7 +391,7 @@ export function ClassBoard({ session, code }: { session: Session; code: string }
                         </button>
                       ) : null}
 
-                      {canAct && state === "present" ? (
+                      {state === "present" ? (
                         <button
                           type="button"
                           disabled={busy}

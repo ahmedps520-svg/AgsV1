@@ -18,6 +18,10 @@ and not a demo that only updates the tab you are looking at.
 ## How AGS is set up
 
 - **Every class has its own board.** There is no shared school-wide queue.
+- **Three roles: administrator, teacher, parent.** A teacher signs in and has
+  full use of any class board — there is no separate read-only screen account.
+  A driver is a parent-role account linked to a student; whether they are the
+  mother, father or a driver is the *relationship* on that link, not a role.
 - **Parents do the calling.** Staff can call manually as a fallback when a
   guardian arrives without the app.
 - **Class codes:** `7b1` is Grade 7, boys, section 1. `7g1` is the girls'
@@ -54,9 +58,7 @@ Demo accounts (no password needed — tap one on the sign-in screen):
 | `admin@ags.demo` | Administrator | Classes, students, people, settings |
 | `teacher@ags.demo` | Teacher | Opens 7b1 |
 | `teacher.girls@ags.demo` | Teacher | Opens 5g1 |
-| `screen@ags.demo` | Classroom screen | A board it cannot change |
 | `parent@ags.demo` | Parent | Ahmed (7b1), Salman (3b1), Noura (5g1) |
-| `driver@ags.demo` | Driver | The same three children |
 
 See [DEPLOYMENT.md](./DEPLOYMENT.md) for the Pages setting and for connecting a
 real Supabase project.
@@ -66,11 +68,11 @@ real Supabase project.
 | Surface | Route | Who | What it does |
 | --- | --- | --- | --- |
 | **Class picker** | `/board` | Teachers, admins | Grade → boys/girls → section; your own classes pinned on top |
-| **Class board** | `/board?c=7b1` | Teachers, classroom screens | Every name as a tile: yellow when called, grey when dismissed. One tap to dismiss, one to undo, one to call manually. Fullscreen and an optional chime |
+| **Class board** | `/board?c=7b1` | Teachers, admins | Every name as a tile: yellow when called, grey when dismissed. One tap to dismiss, one to undo, one to call manually. Fullscreen and an optional chime |
 | **Parent preview** | `/parent` | Parents, drivers | Their children only, a big **I'm here**, live status, cancel |
 | **Students** | `/students` | Staff (read), admin (edit) | Roster, class assignment, pickup permissions |
 | **Classes** | `/classrooms` | Staff (read), admin (edit) | Class codes, rooms, homeroom teachers |
-| **People** | `/people` | Admin | Accounts for teachers, parents, drivers, screens |
+| **People** | `/people` | Admin | Accounts for administrators, teachers and parents |
 | **History** | `/history` | Staff | Every call and dismissal with exact times, CSV export |
 | **Settings** | `/settings` | Admin | School name, timezone, parent-cancel rule, board message |
 | **Account** | `/account` | Everyone | Own details, vehicle, password, language |

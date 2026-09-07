@@ -14,13 +14,12 @@ import { createAccountAction, updatePersonAction } from "@/lib/api/mutations";
 import { cn } from "@/lib/utils";
 import type { ProfileRow, UserRole } from "@/lib/types/database";
 
-const ROLES: UserRole[] = ["admin", "staff", "parent", "display"];
+const ROLES: UserRole[] = ["admin", "staff", "parent"];
 
 const ROLE_TONE: Record<UserRole, string> = {
   admin: "bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300",
   staff: "bg-sky-50 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300",
   parent: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
-  display: "bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300",
 };
 
 export function PeopleManager({

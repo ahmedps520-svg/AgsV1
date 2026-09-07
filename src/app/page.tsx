@@ -13,7 +13,7 @@ import { LanguageToggle } from "@/components/language-toggle";
 import { BootScreen } from "@/components/boot-screen";
 
 export default function HomePage() {
-  const { session, status } = useSession();
+  const { session } = useSession();
   const { t } = useI18n();
   const router = useRouter();
 

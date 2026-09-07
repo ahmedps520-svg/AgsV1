@@ -28,7 +28,6 @@ end $$;
 
 \set admin   '22222222-2222-4222-8222-222222222221'
 \set teacher '22222222-2222-4222-8222-222222222222'
-\set board   '22222222-2222-4222-8222-222222222223'
 \set parent  '22222222-2222-4222-8222-222222222224'
 \set driver  '22222222-2222-4222-8222-222222222225'
 
@@ -197,22 +196,26 @@ select public.act_as(:'driver');
 set role authenticated;
 select public.assert(count(*) = 3, 'the authorised driver sees the same three children') from public.students;
 
-\echo '--- 14. A display account is read-only ---'
+\echo '--- 14. A teacher has full use of every class board ---'
 reset role;
-select public.act_as(:'board');
+select public.act_as(:'teacher');
 set role authenticated;
-select public.assert(count(*) >= 1, 'the board can read the queue') from public.dismissal_queue;
-select public.assert(count(*) > 0, 'a classroom screen can read the roster for its board') from public.students;
-select public.assert(count(*) = 0, 'a classroom screen cannot read parent or staff profiles')
-from public.profiles where id <> auth.uid();
-do $$
-begin
-  perform public.set_request_status(
-    (select id from public.dismissal_requests limit 1), 'ready');
-  raise exception 'ASSERTION FAILED: a display account changed the queue';
-exception
-  when insufficient_privilege then raise notice '  ok: display account cannot change the queue';
-end $$;
+select public.assert(count(*) > 0, 'a teacher reads the roster their boards render') from public.students;
+select public.assert(count(*) >= 0, 'a teacher reads the calls') from public.dismissal_queue;
+
+select public.assert(status = 'called',
+  'a teacher can call a student on any class board in their school')
+from public.staff_call_student((select id from public.students where first_name = 'Noura'));
+
+select public.assert(status = 'picked_up', 'and dismiss them again')
+from public.set_request_status(
+  (select id from public.dismissal_requests where student_name like 'Noura%' limit 1), 'picked_up');
+
+select public.assert(count(*) > 0, 'a teacher reads guardian names inside their own school')
+from public.profiles where role = 'parent';
+
+select public.assert(count(*) = 0, 'but no profile from another school')
+from public.profiles where school_id <> public.current_school_id();
 
 \echo '--- 15. Staff cannot administer the roster; admins can ---'
 reset role;

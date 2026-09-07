@@ -16,7 +16,7 @@ export default function BoardPage() {
 }
 
 function BoardScreen() {
-  const { session, ready } = useRequireRole(["admin", "staff", "display"]);
+  const { session, ready } = useRequireRole(["admin", "staff"]);
   const params = useSearchParams();
   const code = params.get("c");
 

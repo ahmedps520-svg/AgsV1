@@ -17,7 +17,6 @@ declare
   v_school   uuid := '11111111-1111-4111-8111-111111111111';
   v_admin    uuid := '22222222-2222-4222-8222-222222222221';
   v_teacher  uuid := '22222222-2222-4222-8222-222222222222';
-  v_board    uuid := '22222222-2222-4222-8222-222222222223';
   v_parent   uuid := '22222222-2222-4222-8222-222222222224';
   v_driver   uuid := '22222222-2222-4222-8222-222222222225';
   v_password text := 'Dismissal123!';
@@ -48,7 +47,6 @@ begin
     select * from (values
       (v_admin,   'admin@ags.demo',   'Layla Haddad',    'admin'),
       (v_teacher, 'teacher@ags.demo', 'Omar Nasser',     'staff'),
-      (v_board,   'board@ags.demo',   'Main Lobby TV',   'display'),
       (v_parent,  'parent@ags.demo',  'Fatima AlShehri', 'parent'),
       (v_driver,  'driver@ags.demo',  'Yousef Karim',    'parent')
     ) as t(id, email, full_name, role)

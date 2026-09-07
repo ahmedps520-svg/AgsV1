@@ -63,25 +63,11 @@ export const DEMO_ACCOUNTS: {
     homeroom: "5g1",
   },
   {
-    id: "22222222-2222-4222-8222-222222222223",
-    email: "screen@ags.demo",
-    role: "display",
-    name: "Classroom screen",
-    blurbKey: "login.demo.blurb.display",
-  },
-  {
     id: "22222222-2222-4222-8222-222222222224",
     email: "parent@ags.demo",
     role: "parent",
     name: "Fatima AlShehri",
     blurbKey: "login.demo.blurb.parent",
-  },
-  {
-    id: "22222222-2222-4222-8222-222222222225",
-    email: "driver@ags.demo",
-    role: "parent",
-    name: "Yousef Karim",
-    blurbKey: "login.demo.blurb.driver",
   },
 ];
 
@@ -236,11 +222,7 @@ export function buildDemoSnapshot(): DemoSnapshot {
     email: account.email,
     phone: null,
     vehicle_description:
-      account.email === "parent@ags.demo"
-        ? "White Toyota Land Cruiser · ABC 1234"
-        : account.email === "driver@ags.demo"
-          ? "Grey Hyundai Sonata · XYZ 8891"
-          : null,
+      account.email === "parent@ags.demo" ? "White Toyota Land Cruiser · ABC 1234" : null,
     avatar_url: null,
     is_active: true,
     created_at: now(),
@@ -250,16 +232,12 @@ export function buildDemoSnapshot(): DemoSnapshot {
   const byName = (first: string) =>
     students.find((student) => student.first_name === first && student.last_name === "AlShehri")!.id;
   const parentId = DEMO_ACCOUNTS.find((a) => a.email === "parent@ags.demo")!.id;
-  const driverId = DEMO_ACCOUNTS.find((a) => a.email === "driver@ags.demo")!.id;
 
   const guardians: GuardianRow[] = (
     [
       [byName("Ahmed"), parentId, "Mother", true],
       [byName("Salman"), parentId, "Mother", true],
       [byName("Noura"), parentId, "Mother", true],
-      [byName("Ahmed"), driverId, "Authorised driver", false],
-      [byName("Salman"), driverId, "Authorised driver", false],
-      [byName("Noura"), driverId, "Authorised driver", false],
     ] as [string, string, string, boolean][]
   ).map(([student_id, profile_id, relationship, is_primary], index) => ({
     id: `guardian-${index}`,

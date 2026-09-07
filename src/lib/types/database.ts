@@ -6,7 +6,7 @@
  *   supabase gen types typescript --local > src/lib/types/database.ts
  */
 
-export type UserRole = "admin" | "staff" | "parent" | "display";
+export type UserRole = "admin" | "staff" | "parent";
 
 export type DismissalStatus =
   | "requested"

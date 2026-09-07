@@ -17,7 +17,7 @@ export default function PeoplePage() {
   const load = useCallback(async () => {
     if (!school) return null;
     const [people, guardianLinks] = await Promise.all([
-      getPeople(school.id, ["admin", "staff", "parent", "display"]),
+      getPeople(school.id, ["admin", "staff", "parent"]),
       getGuardianLinksBySchool(school.id),
     ]);
     return { people, guardianLinks };

@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { DoorOpen, Hand, Sparkles } from "lucide-react";
 import { homePathForRole, useSession } from "@/lib/api/session";
 import { IS_DEMO } from "@/lib/api/config";
@@ -11,10 +10,11 @@ import { BRAND } from "@/lib/brand";
 import { Logo, LogoArabic, LogoMark } from "@/components/logo";
 import { LanguageToggle } from "@/components/language-toggle";
 import { LoginForm } from "@/components/auth/login-form";
+import { BackLink } from "@/components/layout/back-link";
 import { BootScreen } from "@/components/boot-screen";
 
 export default function LoginPage() {
-  const { session, status } = useSession();
+  const { session } = useSession();
   const { t } = useI18n();
   const router = useRouter();
 
@@ -48,12 +48,7 @@ export default function LoginPage() {
             <p className="mt-8 text-[13px] leading-relaxed text-[var(--color-muted)]">{t("login.accountsNote")}</p>
           ) : null}
 
-          <Link
-            href="/"
-            className="mt-4 inline-block text-[13px] font-medium text-brand-600 hover:underline dark:text-brand-300"
-          >
-            ← {t("common.back")}
-          </Link>
+          <BackLink href="/" className="mt-4 -ms-2" />
         </div>
       </div>
 

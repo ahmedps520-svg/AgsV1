@@ -21,7 +21,8 @@ export default function HomePage() {
     if (session) router.replace(homePathForRole(session.profile.role));
   }, [session, router]);
 
-  if (status === "loading" || session) return <BootScreen />;
+  // Only signed-in visitors wait — they are about to be redirected.
+  if (session) return <BootScreen />;
 
   const features = [
     { icon: Hand, title: t("landing.feature.parents.title"), body: t("landing.feature.parents.body") },

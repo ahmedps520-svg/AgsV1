@@ -134,7 +134,7 @@ export function ClassroomsManager({
                       </div>
                     </dl>
 
-                    <div className="mt-3.5 flex flex-wrap gap-1.5">
+                    <div className="mt-3.5 flex items-center gap-1.5">
                       <Link
                         href={`/board/?c=${encodeURIComponent(room.name)}`}
                         className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-50 px-3 text-[13px] font-semibold text-brand-700 transition hover:bg-brand-100 dark:bg-brand-500/15 dark:text-brand-200"
@@ -146,7 +146,7 @@ export function ClassroomsManager({
                         <>
                           <Button size="sm" variant="secondary" onClick={() => setEditing(room)}>
                             <Pencil className="size-3.5" />
-                            {t("common.edit")}
+                            <span className="hidden sm:inline">{t("common.edit")}</span>
                           </Button>
                           <Button
                             size="sm"

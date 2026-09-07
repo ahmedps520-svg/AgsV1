@@ -1,0 +1,22 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# Fill in the Supabase values when Render prompts for them (they are marked
+# sync: false so they are never committed to the repository).
+services:
+  - type: web
+    name: map-dismissals
+    runtime: node
+    plan: starter
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    healthCheckPath: /login
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: NEXT_PUBLIC_SITE_URL
+        sync: false

@@ -1,0 +1,38 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# next.js
+.next/
+out/
+build/
+next-env.d.ts
+*.tsbuildinfo
+
+# production
+dist/
+
+# environment
+.env
+.env*.local
+.env.production
+
+# supabase
+supabase/.branches
+supabase/.temp
+supabase/.env
+
+# misc
+.DS_Store
+*.pem
+.vercel
+coverage/
+.idea/
+.vscode/*
+!.vscode/extensions.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*

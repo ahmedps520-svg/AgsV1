@@ -1,0 +1,259 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   Map Dismissals — design tokens
+   A single restrained palette drives the staff dashboard, the parent app and
+   the dismissal board so the product reads as one system.
+   ========================================================================== */
+
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  /* Brand — a deep, calm indigo. Trustworthy without feeling institutional. */
+  --color-brand-50: oklch(0.971 0.014 285);
+  --color-brand-100: oklch(0.943 0.029 286);
+  --color-brand-200: oklch(0.894 0.057 286);
+  --color-brand-300: oklch(0.822 0.096 287);
+  --color-brand-400: oklch(0.729 0.145 289);
+  --color-brand-500: oklch(0.648 0.187 291);
+  --color-brand-600: oklch(0.578 0.213 292);
+  --color-brand-700: oklch(0.505 0.204 292);
+  --color-brand-800: oklch(0.432 0.174 292);
+  --color-brand-900: oklch(0.381 0.14 291);
+  --color-brand-950: oklch(0.263 0.104 292);
+
+  --color-canvas: oklch(0.977 0.003 265);
+  --color-surface: oklch(1 0 0);
+  --color-ink: oklch(0.21 0.02 265);
+  --color-muted: oklch(0.52 0.02 265);
+  --color-hairline: oklch(0.92 0.005 265);
+
+  --radius-xl: 0.875rem;
+  --radius-2xl: 1.125rem;
+  --radius-3xl: 1.5rem;
+
+  --shadow-soft: 0 1px 2px oklch(0.21 0.02 265 / 0.04), 0 4px 16px oklch(0.21 0.02 265 / 0.05);
+  --shadow-lift: 0 2px 4px oklch(0.21 0.02 265 / 0.05), 0 12px 32px oklch(0.21 0.02 265 / 0.09);
+  --shadow-pop: 0 24px 60px oklch(0.21 0.02 265 / 0.18);
+
+  --animate-rise: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-fade-in: fade-in 0.3s ease-out both;
+  --animate-shimmer: shimmer 1.6s ease-in-out infinite;
+  --animate-halo: halo 2.6s ease-out infinite;
+  --animate-ticker: ticker 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+/* The expanding ring behind a live indicator. */
+@keyframes halo {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.7;
+  }
+  70% {
+    transform: scale(2.1);
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes ticker {
+  from {
+    opacity: 0;
+    transform: translateY(0.4em);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+
+@layer base {
+  * {
+    border-color: var(--color-hairline);
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    /* Respect iOS safe areas so the parent app's sticky bar clears the home bar. */
+    min-height: 100dvh;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --color-canvas: oklch(0.16 0.012 265);
+      --color-surface: oklch(0.21 0.014 265);
+      --color-ink: oklch(0.97 0.003 265);
+      --color-muted: oklch(0.68 0.014 265);
+      --color-hairline: oklch(0.3 0.014 265);
+    }
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand-500);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--color-brand-200);
+    color: var(--color-brand-950);
+  }
+
+  /* Numbers in clocks, timers and queue positions must not jitter. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    font: inherit;
+  }
+}
+
+/* ==========================================================================
+   Components
+   ========================================================================== */
+
+@layer components {
+  .surface-card {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-soft);
+  }
+
+  /* Frosted header used by the app shell and the parent app. */
+  .glass {
+    background-color: color-mix(in oklab, var(--color-surface) 78%, transparent);
+    backdrop-filter: saturate(180%) blur(16px);
+    -webkit-backdrop-filter: saturate(180%) blur(16px);
+  }
+
+  .scrollbar-slim {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--color-muted) 40%, transparent) transparent;
+  }
+
+  .scrollbar-slim::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar-slim::-webkit-scrollbar-thumb {
+    background-color: color-mix(in oklab, var(--color-muted) 35%, transparent);
+    border-radius: 999px;
+  }
+
+  .scrollbar-slim::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+/* ==========================================================================
+   Dismissal board — always dark, tuned for a projector across a room.
+   ========================================================================== */
+
+.board-root {
+  --board-bg: oklch(0.145 0.02 275);
+  --board-elevated: oklch(0.205 0.028 277);
+  --board-ink: oklch(0.985 0.002 265);
+  --board-muted: oklch(0.72 0.02 270);
+  background:
+    radial-gradient(120% 80% at 12% -10%, oklch(0.34 0.13 292 / 0.55) 0%, transparent 55%),
+    radial-gradient(90% 70% at 95% 8%, oklch(0.4 0.1 235 / 0.35) 0%, transparent 60%),
+    var(--board-bg);
+  color: var(--board-ink);
+  color-scheme: dark;
+}
+
+.board-root ::selection {
+  background: oklch(0.578 0.213 292 / 0.5);
+}
+
+/* Long student names must never overflow the hero slot. */
+.board-hero-name {
+  font-size: clamp(3rem, 9.5vw, 11rem);
+  line-height: 0.95;
+  letter-spacing: -0.035em;
+  font-weight: 800;
+  text-wrap: balance;
+}
+
+.board-hero-sub {
+  font-size: clamp(1.25rem, 2.8vw, 3rem);
+  letter-spacing: -0.01em;
+}
+
+.board-idle-title {
+  font-size: clamp(2rem, 5.5vw, 5rem);
+  letter-spacing: -0.03em;
+}
+
+/* Hide the pointer on an unattended display. */
+.board-immersive {
+  cursor: none;
+}
+
+/* ==========================================================================
+   Motion preferences
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

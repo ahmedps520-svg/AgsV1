@@ -1,18 +1,19 @@
 {
-  "name": "map-dismissals",
+  "name": "ags-dismissals",
   "version": "1.0.0",
   "private": true,
-  "description": "Map Dismissals — a real-time school dismissal platform for staff, parents and display boards.",
+  "description": "Real-time school dismissal for Advanced Generations International Schools.",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && node scripts/prepare-sw.mjs",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "icons": "node scripts/generate-icons.mjs",
     "db:reset": "supabase db reset",
     "db:push": "supabase db push",
-    "test:db": "./supabase/tests/run.sh"
+    "test:db": "./supabase/tests/run.sh",
+    "preview": "npx --yes serve out -l 3000"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.6",

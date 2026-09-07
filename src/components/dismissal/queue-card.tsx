@@ -37,7 +37,7 @@ function timing(row: DismissalQueueRow, timeZone: string, now: number) {
         icon: Megaphone,
         text: `Called at ${formatTime(row.called_at, timeZone)}`,
         detail: timeAgo(row.called_at, now),
-        tone: "text-indigo-600 dark:text-indigo-400",
+        tone: "text-brand-700 dark:text-brand-300",
       };
     case "ready":
       return {
@@ -93,7 +93,7 @@ export function QueueCard({
       className={cn(
         "surface-card relative overflow-hidden p-4 transition-shadow",
         pending && "opacity-70",
-        row.status === "called" && "ring-1 ring-indigo-500/25",
+        row.status === "called" && "ring-1 ring-brand-500/30",
         row.status === "ready" && "ring-1 ring-emerald-500/25",
       )}
     >
@@ -102,7 +102,7 @@ export function QueueCard({
         aria-hidden
         className={cn(
           "absolute inset-y-0 left-0 w-1",
-          row.status === "called" && "bg-indigo-500",
+          row.status === "called" && "bg-brand-600",
           row.status === "ready" && "bg-emerald-500",
           (row.status === "waiting" || row.status === "requested") && "bg-amber-400",
           row.status === "picked_up" && "bg-slate-300 dark:bg-slate-600",
@@ -110,12 +110,12 @@ export function QueueCard({
         )}
       />
 
-      <div className="flex items-start gap-3.5 pl-1.5">
+      <div className="flex min-w-0 items-start gap-3.5 pl-1.5">
         <Avatar name={row.student_name} size="md" />
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-            <h3 className="truncate text-[16.5px] font-bold tracking-[-0.015em]">
+            <h3 className="min-w-0 truncate text-[16.5px] font-bold tracking-[-0.015em]">
               {row.student_name}
             </h3>
             {showPickupNumber && row.pickup_number ? (
@@ -125,7 +125,7 @@ export function QueueCard({
               </span>
             ) : null}
             {row.queue_position && (row.status === "waiting" || row.status === "requested") ? (
-              <span className="tabular rounded-md bg-amber-100 px-1.5 py-0.5 text-[11.5px] font-bold text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+              <span className="tabular whitespace-nowrap rounded-md bg-amber-100 px-1.5 py-0.5 text-[11.5px] font-bold text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
                 {ordinal(row.queue_position)} in line
               </span>
             ) : null}
@@ -135,30 +135,37 @@ export function QueueCard({
             {studentSubtitle(row) || "No class assigned"}
           </p>
 
-          <div className={cn("tabular mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] font-medium", info.tone)}>
+          <div
+            className={cn(
+              "tabular mt-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[13px] font-medium",
+              info.tone,
+            )}
+          >
             <TimeIcon className="size-3.5 shrink-0" />
-            <span>{info.text}</span>
+            <span className="truncate">{info.text}</span>
             {info.detail ? (
               <span className="font-normal text-[var(--color-muted)]">· {info.detail}</span>
             ) : null}
           </div>
 
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-[var(--color-muted)]">
-            <span className="inline-flex items-center gap-1.5">
+            <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
               <Car className="size-3.5 shrink-0" />
-              {describeSource(row)}
-              {row.vehicle_description ? ` · ${row.vehicle_description}` : ""}
+              <span className="truncate">
+                {describeSource(row)}
+                {row.vehicle_description ? ` · ${row.vehicle_description}` : ""}
+              </span>
             </span>
             {row.note ? (
-              <span className="inline-flex items-center gap-1.5">
+              <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
                 <MessageSquareText className="size-3.5 shrink-0" />
-                {row.note}
+                <span className="truncate">{row.note}</span>
               </span>
             ) : null}
           </div>
         </div>
 
-        <StatusBadge status={row.status} className="hidden shrink-0 sm:inline-flex" />
+        <StatusBadge status={row.status} className="hidden shrink-0 whitespace-nowrap min-[1600px]:hidden md:inline-flex" />
       </div>
 
       {/* Actions */}

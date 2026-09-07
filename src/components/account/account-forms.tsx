@@ -2,8 +2,8 @@
 
 import { useActionState, useEffect } from "react";
 import { KeyRound, UserRound } from "lucide-react";
-import { updateOwnProfileAction } from "@/server/actions/settings";
-import { updatePasswordAction } from "@/server/actions/auth";
+import { updateOwnProfileAction } from "@/lib/api/mutations";
+import { updatePasswordAction } from "@/lib/api/mutations";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { Card, CardHeader, ErrorMessage } from "@/components/ui/primitives";

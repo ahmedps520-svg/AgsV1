@@ -1,30 +1,31 @@
+"use client";
+
+import { useEffect } from "react";
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import {
-  ArrowRight,
-  Bell,
-  MonitorSpeaker,
-  ShieldCheck,
-  Smartphone,
-  Zap,
-} from "lucide-react";
-import { isSupabaseConfigured } from "@/lib/env";
-import { getSession, homePathForRole } from "@/server/session";
-import { SetupNotice } from "@/components/setup-notice";
-import { Logo } from "@/components/logo";
+import { useRouter } from "next/navigation";
+import { ArrowRight, MonitorSpeaker, ShieldCheck, Smartphone, Sparkles, Zap } from "lucide-react";
+import { homePathForRole, useSession } from "@/lib/api/session";
+import { IS_DEMO } from "@/lib/api/config";
+import { BRAND } from "@/lib/brand";
+import { Logo, LogoArabic } from "@/components/logo";
+import { BootScreen } from "@/components/boot-screen";
 
-export default async function HomePage() {
-  if (!isSupabaseConfigured()) return <SetupNotice />;
+export default function HomePage() {
+  const { session, status } = useSession();
+  const router = useRouter();
 
-  const session = await getSession();
-  if (session) redirect(homePathForRole(session.profile.role));
+  useEffect(() => {
+    if (session) router.replace(homePathForRole(session.profile.role));
+  }, [session, router]);
+
+  if (status === "loading" || session) return <BootScreen />;
 
   return (
     <main id="main" className="relative min-h-dvh overflow-hidden">
-      {/* Ambient brand wash */}
+      {/* Ambient crest wash */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(120%_80%_at_10%_-10%,var(--color-brand-100)_0%,transparent_55%),radial-gradient(90%_70%_at_95%_5%,#dbeafe_0%,transparent_60%)] dark:bg-[radial-gradient(120%_80%_at_10%_-10%,rgba(91,75,219,0.22)_0%,transparent_55%),radial-gradient(90%_70%_at_95%_5%,rgba(37,99,235,0.16)_0%,transparent_60%)]"
+        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(120%_80%_at_10%_-10%,var(--color-brand-100)_0%,transparent_55%),radial-gradient(80%_60%_at_92%_2%,var(--color-gold-100)_0%,transparent_60%)] dark:bg-[radial-gradient(120%_80%_at_10%_-10%,rgba(30,58,115,0.35)_0%,transparent_55%),radial-gradient(80%_60%_at_92%_2%,rgba(245,179,36,0.12)_0%,transparent_60%)]"
       />
 
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6">
@@ -38,31 +39,43 @@ export default async function HomePage() {
         </Link>
       </header>
 
-      <section className="mx-auto w-full max-w-6xl px-6 pb-20 pt-10 sm:pt-16">
-        <p className="inline-flex items-center gap-2 rounded-full bg-[var(--color-surface)] px-3 py-1.5 text-[13px] font-medium text-[var(--color-muted)] ring-1 ring-[var(--color-hairline)]">
-          <span className="relative flex size-2">
-            <span className="absolute inline-flex size-2 animate-[halo_2.6s_ease-out_infinite] rounded-full bg-emerald-500" />
-            <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
-          </span>
-          Live dismissal, every afternoon
-        </p>
+      <section className="mx-auto w-full max-w-6xl px-6 pb-20 pt-10 sm:pt-14">
+        {IS_DEMO ? (
+          <p className="inline-flex items-center gap-2 rounded-full bg-gold-100 px-3 py-1.5 text-[13px] font-semibold text-gold-800 ring-1 ring-gold-600/20 dark:bg-gold-500/15 dark:text-gold-200 dark:ring-gold-400/25">
+            <Sparkles className="size-3.5" />
+            Live demo — no sign-up needed
+          </p>
+        ) : (
+          <p className="inline-flex items-center gap-2 rounded-full bg-[var(--color-surface)] px-3 py-1.5 text-[13px] font-medium text-[var(--color-muted)] ring-1 ring-[var(--color-hairline)]">
+            <span className="relative flex size-2">
+              <span className="absolute inline-flex size-2 animate-[halo_2.6s_ease-out_infinite] rounded-full bg-emerald-500" />
+              <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+            </span>
+            Live dismissal, every afternoon
+          </p>
+        )}
 
         <h1 className="mt-6 max-w-3xl text-balance text-5xl font-extrabold leading-[1.02] tracking-[-0.035em] sm:text-6xl lg:text-7xl">
           Dismissal that runs itself.
         </h1>
 
+        <p className="mt-3 text-xl font-semibold text-brand-700 dark:text-brand-300">
+          {BRAND.name}
+        </p>
+        <LogoArabic className="mt-1 text-lg text-[var(--color-muted)]" />
+
         <p className="mt-6 max-w-2xl text-lg leading-relaxed text-[var(--color-muted)] sm:text-xl">
           Parents tap <span className="font-semibold text-[var(--color-ink)]">I&apos;m Here</span>{" "}
-          from the pickup line. Staff work one live queue. The board on the wall updates the instant
+          from the pickup line. Staff work one live queue. The board in the lobby updates the instant
           a student is called — no refreshing, no radios, no clipboard.
         </p>
 
         <div className="mt-9 flex flex-col gap-3 sm:flex-row">
           <Link
             href="/login"
-            className="inline-flex h-13 items-center justify-center gap-2 rounded-2xl bg-brand-600 px-7 py-3.5 text-base font-semibold text-white shadow-lift transition hover:bg-brand-700 active:scale-[0.99]"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-600 px-7 py-3.5 text-base font-semibold text-white shadow-lift transition hover:bg-brand-700 active:scale-[0.99]"
           >
-            Sign in to your school
+            {IS_DEMO ? "Try the demo" : "Sign in to your school"}
             <ArrowRight className="size-5" />
           </Link>
           <Link
@@ -88,7 +101,7 @@ export default async function HomePage() {
             },
             {
               icon: MonitorSpeaker,
-              title: "For the hallway",
+              title: "For the lobby",
               body: "A fullscreen board built to be read from across a room, updating the moment a name is called.",
             },
             {
@@ -107,11 +120,19 @@ export default async function HomePage() {
           ))}
         </dl>
 
-        <div className="mt-10 flex items-center gap-3 rounded-2xl bg-[var(--color-surface)] p-4 text-sm text-[var(--color-muted)] ring-1 ring-[var(--color-hairline)]">
-          <Bell className="size-5 shrink-0 text-brand-600 dark:text-brand-400" />
+        <div className="mt-10 flex items-start gap-3 rounded-2xl bg-[var(--color-surface)] p-4 text-sm leading-relaxed text-[var(--color-muted)] ring-1 ring-[var(--color-hairline)]">
+          <Sparkles className="mt-0.5 size-5 shrink-0 text-gold-600" />
           <p>
-            Accounts are created by your school administrator. If you can&apos;t sign in, contact the
-            school office.
+            {IS_DEMO ? (
+              <>
+                This is a self-contained demo — the school below lives in your browser and never
+                leaves your device. Sign in as a teacher in one tab and a parent in another to watch
+                the queue, the board and the parent app stay in step.
+              </>
+            ) : (
+              <>Accounts are created by your school administrator. If you can&apos;t sign in, contact
+              the school office.</>
+            )}
           </p>
         </div>
       </section>

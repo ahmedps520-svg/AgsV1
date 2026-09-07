@@ -1,12 +1,11 @@
 "use client";
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
+import { useSession } from "@/lib/api/session";
 import { cn } from "@/lib/utils";
 
-/**
- * Posts to a route handler rather than calling a server action, so signing out
- * works even if client JavaScript has not hydrated.
- */
 export function SignOutButton({
   className,
   label = "Sign out",
@@ -16,21 +15,29 @@ export function SignOutButton({
   label?: string;
   compact?: boolean;
 }) {
+  const { signOut } = useSession();
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+
   return (
-    <form action="/auth/sign-out" method="post">
-      <button
-        type="submit"
-        className={cn(
-          "inline-flex items-center gap-2 rounded-xl text-sm font-medium transition",
-          compact
-            ? "w-full px-3 py-2 text-[var(--color-muted)] hover:bg-black/[0.05] hover:text-[var(--color-ink)] dark:hover:bg-white/[0.07]"
-            : "bg-[var(--color-surface)] px-4 py-2.5 text-[var(--color-ink)] shadow-soft ring-1 ring-[var(--color-hairline)] hover:bg-black/[0.03] dark:hover:bg-white/[0.06]",
-          className,
-        )}
-      >
-        <LogOut className="size-4 shrink-0" />
-        {label}
-      </button>
-    </form>
+    <button
+      type="button"
+      disabled={busy}
+      onClick={async () => {
+        setBusy(true);
+        await signOut();
+        router.replace("/login");
+      }}
+      className={cn(
+        "inline-flex items-center gap-2 rounded-xl text-sm font-medium transition disabled:opacity-60",
+        compact
+          ? "w-full px-3 py-2 text-[var(--color-muted)] hover:bg-black/[0.05] hover:text-[var(--color-ink)] dark:hover:bg-white/[0.07]"
+          : "bg-[var(--color-surface)] px-4 py-2.5 text-[var(--color-ink)] shadow-soft ring-1 ring-[var(--color-hairline)] hover:bg-black/[0.03] dark:hover:bg-white/[0.06]",
+        className,
+      )}
+    >
+      <LogOut className="size-4 shrink-0" />
+      {label}
+    </button>
   );
 }

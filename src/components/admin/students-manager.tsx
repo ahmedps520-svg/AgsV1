@@ -8,11 +8,11 @@ import { Field, Input, Select, Switch } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { Avatar, EmptyState, ErrorMessage } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast";
-import { deleteStudentAction, saveStudentAction } from "@/server/actions/roster";
-import { linkGuardianAction, setGuardianPickupAction, unlinkGuardianAction } from "@/server/actions/people";
+import { deleteStudentAction, saveStudentAction } from "@/lib/api/mutations";
+import { linkGuardianAction, setGuardianPickupAction, unlinkGuardianAction } from "@/lib/api/mutations";
 import { cn } from "@/lib/utils";
 import type { ClassroomRow, ProfileRow } from "@/lib/types/database";
-import type { StudentGuardianLink, StudentWithClassroom } from "@/server/queries/dismissal";
+import type { StudentGuardianLink, StudentWithClassroom } from "@/lib/api/queries";
 
 export function StudentsManager({
   students,

@@ -72,7 +72,7 @@ export function InstallHint() {
         <p className="mt-0.5 text-[13px] leading-relaxed text-[var(--color-muted)]">
           {isIos
             ? "Tap the Share button, then “Add to Home Screen” for one-tap pickup."
-            : "Install Map Dismissals for one-tap pickup, even on a weak signal."}
+            : "Install AGS Dismissals for one-tap pickup, even on a weak signal."}
         </p>
 
         {deferred ? (

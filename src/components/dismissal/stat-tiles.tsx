@@ -9,14 +9,14 @@ export interface Stat {
 
 const TONES: Record<Stat["tone"], string> = {
   amber: "text-amber-600 dark:text-amber-400",
-  indigo: "text-indigo-600 dark:text-indigo-400",
+  indigo: "text-brand-700 dark:text-brand-300",
   emerald: "text-emerald-600 dark:text-emerald-400",
   slate: "text-[var(--color-muted)]",
 };
 
 const DOTS: Record<Stat["tone"], string> = {
   amber: "bg-amber-500",
-  indigo: "bg-indigo-500",
+  indigo: "bg-brand-600",
   emerald: "bg-emerald-500",
   slate: "bg-slate-400",
 };

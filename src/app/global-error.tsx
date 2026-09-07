@@ -21,7 +21,7 @@ export default function GlobalError({ reset }: { error: Error; reset: () => void
       >
         <main style={{ maxWidth: 420, padding: 24, textAlign: "center" }}>
           <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.02em", margin: 0 }}>
-            Map Dismissals is temporarily unavailable
+            AGS Dismissals is temporarily unavailable
           </h1>
           <p style={{ marginTop: 12, lineHeight: 1.6, color: "#5c6076" }}>
             Please reload the page. If this continues, contact your school administrator.

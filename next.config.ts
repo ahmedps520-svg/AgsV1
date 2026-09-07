@@ -1,32 +1,30 @@
 import type { NextConfig } from "next";
 
+/**
+ * Static export.
+ *
+ * The app is published to GitHub Pages, which serves files and nothing else —
+ * so there is no Next.js server, no middleware and no server actions. All data
+ * access happens in the browser against Supabase, where Row Level Security and
+ * the SECURITY DEFINER workflow functions enforce exactly the same rules.
+ *
+ * `NEXT_PUBLIC_BASE_PATH` is set to `/AgsV1` by the deploy workflow because
+ * project Pages sites are served from a repository sub-path.
+ */
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+
 const nextConfig: NextConfig = {
+  output: "export",
+  basePath: basePath || undefined,
+  assetPrefix: basePath || undefined,
+  // Pages serves /foo as /foo/index.html.
+  trailingSlash: true,
   reactStrictMode: true,
   poweredByHeader: false,
   images: {
+    // No image optimiser exists on a static host.
+    unoptimized: true,
     remotePatterns: [{ protocol: "https", hostname: "**.supabase.co" }],
-  },
-  async headers() {
-    return [
-      {
-        // The service worker must never be cached aggressively, otherwise
-        // clients get stuck on an old shell after a deploy.
-        source: "/sw.js",
-        headers: [
-          { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
-          { key: "Service-Worker-Allowed", value: "/" },
-        ],
-      },
-      {
-        source: "/(.*)",
-        headers: [
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "X-Frame-Options", value: "SAMEORIGIN" },
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
-        ],
-      },
-    ];
   },
 };
 

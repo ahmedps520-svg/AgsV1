@@ -14,7 +14,7 @@ export default function NotFound() {
       </span>
       <h1 className="mt-5 text-2xl font-bold tracking-[-0.02em]">Page not found</h1>
       <p className="mt-2.5 text-[15px] leading-relaxed text-[var(--color-muted)]">
-        That link doesn&apos;t lead anywhere in Map Dismissals.
+        That link doesn&apos;t lead anywhere in AGS Dismissals.
       </p>
       <Link
         href="/"

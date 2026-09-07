@@ -1,42 +1,43 @@
-import type { Metadata } from "next";
-import { requireParent } from "@/server/session";
-import { getGuardianRequests, getGuardianStudents } from "@/server/queries/dismissal";
-import type { GuardianStudent } from "@/server/queries/dismissal";
+"use client";
+
+import { Suspense, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
+import { useRequireRole } from "@/components/auth/require-role";
+import { getGuardianRequests, getGuardianStudents } from "@/lib/api/queries";
+import { useLoad } from "@/lib/api/use-load";
 import { ParentApp } from "@/components/parent/parent-app";
-import { ErrorMessage } from "@/components/ui/primitives";
-import type { DismissalQueueRow } from "@/lib/types/database";
+import { ErrorMessage, Skeleton } from "@/components/ui/primitives";
 
-export const metadata: Metadata = { title: "Pickup" };
-export const dynamic = "force-dynamic";
+export default function ParentPage() {
+  return (
+    <Suspense fallback={<ParentSkeleton />}>
+      <ParentScreen />
+    </Suspense>
+  );
+}
 
-export default async function ParentPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ action?: string }>;
-}) {
-  const session = await requireParent("/parent");
-  const params = await searchParams;
+function ParentScreen() {
+  const { session, ready } = useRequireRole(["parent"]);
+  const searchParams = useSearchParams();
 
-  let students: GuardianStudent[] = [];
-  let requests: DismissalQueueRow[] = [];
-  let loadError: string | null = null;
+  const userId = session?.userId ?? null;
 
-  try {
-    students = await getGuardianStudents(session.userId);
-    requests = await getGuardianRequests(
+  const load = useCallback(async () => {
+    if (!userId) return null;
+    const students = await getGuardianStudents(userId);
+    const requests = await getGuardianRequests(
       students.map((link) => link.student?.id).filter((id): id is string => Boolean(id)),
     );
-  } catch (error) {
-    loadError = error instanceof Error ? error.message : "Unknown error";
-  }
+    return { students, requests };
+  }, [userId]);
 
-  if (loadError) {
+  const { data, error, loading } = useLoad(load, ready && Boolean(userId));
+
+  if (error) {
     return (
       <main id="main" className="mx-auto w-full max-w-lg px-5 py-16">
         <h1 className="text-2xl font-extrabold tracking-[-0.03em]">Pickup</h1>
-        <ErrorMessage className="mt-4">
-          We couldn&apos;t load your students: {loadError}
-        </ErrorMessage>
+        <ErrorMessage className="mt-4">We couldn&apos;t load your students: {error}</ErrorMessage>
         <p className="mt-4 text-sm text-[var(--color-muted)]">
           Please try again in a moment, or contact the school office if this keeps happening.
         </p>
@@ -44,14 +45,31 @@ export default async function ParentPage({
     );
   }
 
+  if (!ready || !session || loading || !data) return <ParentSkeleton />;
+
   return (
     <ParentApp
       school={session.school}
       guardianName={session.profile.full_name || "there"}
       defaultVehicle={session.profile.vehicle_description}
-      students={students}
-      initialRequests={requests}
-      autoOpenArrive={params.action === "arrive"}
+      students={data.students}
+      initialRequests={data.requests}
+      autoOpenArrive={searchParams.get("action") === "arrive"}
     />
+  );
+}
+
+function ParentSkeleton() {
+  return (
+    <div className="mx-auto w-full max-w-lg px-4 pt-6">
+      <Skeleton className="h-7 w-56" />
+      <Skeleton className="mt-2 h-4 w-72" />
+      <Skeleton className="mt-6 h-44 rounded-2xl" />
+      <Skeleton className="mt-4 h-3 w-28" />
+      <div className="mt-3 space-y-2.5">
+        <Skeleton className="h-[74px] rounded-2xl" />
+        <Skeleton className="h-[74px] rounded-2xl" />
+      </div>
+    </div>
   );
 }

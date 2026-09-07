@@ -14,7 +14,7 @@ import {
 import { LogoMark } from "@/components/logo";
 import { LiveDot } from "@/components/ui/primitives";
 import { useLiveQueue } from "@/hooks/use-live-queue";
-import { fetchQueue } from "@/lib/live-queries";
+import { getQueue } from "@/lib/api/queries";
 import { BoardClock } from "@/components/board/board-clock";
 import { playChime, unlockAudio } from "@/components/board/chime";
 import { studentSubtitle } from "@/lib/dismissal";
@@ -32,7 +32,7 @@ export function BoardClient({
   initialQueue: DismissalQueueRow[];
   today: string;
 }) {
-  const load = React.useCallback(() => fetchQueue(school.id, today), [school.id, today]);
+  const load = React.useCallback(() => getQueue(school.id, today), [school.id, today]);
 
   const { rows, connection } = useLiveQueue<DismissalQueueRow>({
     channelName: `dismissal-board:${school.id}`,
@@ -179,7 +179,7 @@ export function BoardClient({
                   initial={{ opacity: 0, x: -14 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.05 }}
-                  className="flex items-center gap-3 text-[clamp(0.85rem,1.5vw,1.6rem)] font-bold uppercase tracking-[0.28em] text-brand-300"
+                  className="flex items-center gap-3 text-[clamp(0.85rem,1.5vw,1.6rem)] font-bold uppercase tracking-[0.28em] text-gold-400"
                 >
                   <Megaphone className="size-[1em]" />
                   {hero.status === "ready" ? "Ready for pickup" : "Now dismissing"}
@@ -215,7 +215,7 @@ export function BoardClient({
                 exit={{ opacity: 0 }}
                 className="min-w-0"
               >
-                <p className="text-[clamp(0.85rem,1.5vw,1.6rem)] font-bold uppercase tracking-[0.28em] text-brand-300">
+                <p className="text-[clamp(0.85rem,1.5vw,1.6rem)] font-bold uppercase tracking-[0.28em] text-gold-400">
                   Dismissal board
                 </p>
                 <h1 className="board-idle-title mt-[2.5vh] font-extrabold">
@@ -265,7 +265,7 @@ export function BoardClient({
             <span className="font-medium text-[var(--board-muted)]">waiting</span>
           </span>
           <span className="inline-flex items-center gap-2.5">
-            <Megaphone className="size-[1.1em] text-brand-300" />
+            <Megaphone className="size-[1.1em] text-gold-400" />
             <span className="tabular">{called.length}</span>
             <span className="font-medium text-[var(--board-muted)]">called</span>
           </span>
@@ -365,7 +365,7 @@ function BoardList({
                   aria-hidden
                   className={cn(
                     "size-2.5 shrink-0 rounded-full",
-                    tone === "emerald" ? "bg-emerald-400" : "bg-brand-400",
+                    tone === "emerald" ? "bg-emerald-400" : "bg-gold-400",
                   )}
                 />
                 <span className="min-w-0 flex-1">

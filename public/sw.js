@@ -1,22 +1,26 @@
-/* Map Dismissals — service worker
+/* AGS Dismissals — service worker
  *
  * Scope is intentionally narrow:
  *   • the app shell and icons are precached so the parent PWA opens instantly;
  *   • navigations are network-first with an offline fallback;
  *   • Supabase traffic (auth, REST, Realtime) is NEVER cached — dismissal data
- *     must always be live, and cached responses could leak between accounts.
+ *     must always be live, and a cached response could otherwise leak between
+ *     accounts on a shared device.
+ *
+ * BASE_PATH is rewritten at build time by scripts/prepare-sw.mjs.
  */
 
-const VERSION = "map-dismissals-v1";
+const BASE_PATH = "__BASE_PATH__";
+const VERSION = "ags-dismissals-v1";
 const SHELL_CACHE = `${VERSION}-shell`;
 const ASSET_CACHE = `${VERSION}-assets`;
-const OFFLINE_URL = "/offline";
+const OFFLINE_URL = `${BASE_PATH}/offline/`;
 
 const PRECACHE = [
   OFFLINE_URL,
-  "/icons/icon-192.png",
-  "/icons/icon-512.png",
-  "/icons/maskable-512.png",
+  `${BASE_PATH}/icons/icon-192.png`,
+  `${BASE_PATH}/icons/icon-512.png`,
+  `${BASE_PATH}/icons/maskable-512.png`,
 ];
 
 self.addEventListener("install", (event) => {
@@ -41,20 +45,19 @@ self.addEventListener("activate", (event) => {
 });
 
 function isSupabase(url) {
-  return url.hostname.endsWith(".supabase.co") || url.pathname.startsWith("/auth/");
+  return url.hostname.endsWith(".supabase.co");
 }
 
 function isStaticAsset(url) {
   return (
-    url.pathname.startsWith("/_next/static/") ||
-    url.pathname.startsWith("/icons/") ||
+    url.pathname.includes("/_next/static/") ||
+    url.pathname.includes("/icons/") ||
     /\.(?:css|js|woff2?|png|jpg|jpeg|svg|webp|ico)$/.test(url.pathname)
   );
 }
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
-
   if (request.method !== "GET") return;
 
   const url = new URL(request.url);

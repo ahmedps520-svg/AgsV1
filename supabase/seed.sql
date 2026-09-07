@@ -1,15 +1,15 @@
 -- ===========================================================================
--- Map Dismissals — demo seed
+-- AGS Dismissals — demo seed
 -- ---------------------------------------------------------------------------
 -- Loaded automatically by `supabase db reset` for LOCAL development.
 -- It creates sign-in accounts with well-known passwords: never run it against
 -- a production project.
 --
---   admin@mapdismissals.demo    / Dismissal123!   (administrator)
---   teacher@mapdismissals.demo  / Dismissal123!   (staff)
---   board@mapdismissals.demo    / Dismissal123!   (TV display, read only)
---   parent@mapdismissals.demo   / Dismissal123!   (parent of Ahmed + Salman)
---   driver@mapdismissals.demo   / Dismissal123!   (authorised driver)
+--   admin@ags.demo    / Dismissal123!   (administrator)
+--   teacher@ags.demo  / Dismissal123!   (staff)
+--   board@ags.demo    / Dismissal123!   (TV display, read only)
+--   parent@ags.demo   / Dismissal123!   (parent of Ahmed + Salman)
+--   driver@ags.demo   / Dismissal123!   (authorised driver)
 -- ===========================================================================
 
 do $$
@@ -33,8 +33,8 @@ begin
   insert into public.schools (id, name, slug, timezone, dismissal_start, dismissal_end, board_message)
   values (
     v_school,
-    'Al Manara International School',
-    'al-manara',
+    'Advanced Generations International Schools',
+    'ags',
     'Asia/Riyadh',
     '15:00',
     '16:00',
@@ -45,11 +45,11 @@ begin
   -- ----------------------------------------------------------------- users --
   for v_user in
     select * from (values
-      (v_admin,   'admin@mapdismissals.demo',   'Layla Haddad',    'admin'),
-      (v_teacher, 'teacher@mapdismissals.demo', 'Omar Nasser',     'staff'),
-      (v_board,   'board@mapdismissals.demo',   'Main Lobby TV',   'display'),
-      (v_parent,  'parent@mapdismissals.demo',  'Fatima AlShehri', 'parent'),
-      (v_driver,  'driver@mapdismissals.demo',  'Yousef Karim',    'parent')
+      (v_admin,   'admin@ags.demo',   'Layla Haddad',    'admin'),
+      (v_teacher, 'teacher@ags.demo', 'Omar Nasser',     'staff'),
+      (v_board,   'board@ags.demo',   'Main Lobby TV',   'display'),
+      (v_parent,  'parent@ags.demo',  'Fatima AlShehri', 'parent'),
+      (v_driver,  'driver@ags.demo',  'Yousef Karim',    'parent')
     ) as t(id, email, full_name, role)
   loop
     insert into auth.users (

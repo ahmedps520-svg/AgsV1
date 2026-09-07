@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useActionState, useEffect } from "react";
 import { Building2, MonitorSpeaker, SlidersHorizontal } from "lucide-react";
-import { updateSchoolAction } from "@/server/actions/settings";
+import { updateSchoolAction } from "@/lib/api/mutations";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Switch } from "@/components/ui/field";
 import { Card, CardHeader, ErrorMessage } from "@/components/ui/primitives";

@@ -109,8 +109,9 @@ export function AppShell({
         <Avatar name={userName} size="sm" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13px] font-semibold">{userName}</p>
-          <p className="truncate text-[11.5px] capitalize text-[var(--color-muted)]">
-            {role === "admin" ? "Administrator" : role} · {userEmail ?? ""}
+          <p className="truncate text-[11.5px] text-[var(--color-muted)]">
+            <span className="capitalize">{role === "admin" ? "Administrator" : role}</span>
+            {userEmail ? ` · ${userEmail}` : ""}
           </p>
         </div>
       </div>
@@ -122,8 +123,8 @@ export function AppShell({
     <div className="flex min-h-dvh">
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-[var(--color-hairline)] bg-[var(--color-surface)] lg:flex">
-        <div className="px-5 py-5">
-          <Logo schoolName={schoolName} />
+        <div className="min-w-0 px-5 py-5">
+          <Logo schoolName={schoolName} compact />
         </div>
         {nav}
         {account}
@@ -147,8 +148,8 @@ export function AppShell({
               transition={{ type: "spring", stiffness: 420, damping: 38 }}
               className="relative flex h-full w-72 flex-col bg-[var(--color-surface)] shadow-pop"
             >
-              <div className="flex items-center justify-between px-5 py-5">
-                <Logo schoolName={schoolName} />
+              <div className="flex items-center justify-between gap-2 px-5 py-5">
+                <Logo schoolName={schoolName} compact />
                 <button
                   type="button"
                   onClick={() => setMenuOpen(false)}
@@ -177,7 +178,9 @@ export function AppShell({
             <Menu className="size-5" />
           </button>
           <LogoMark className="size-8" />
-          <p className="min-w-0 flex-1 truncate text-sm font-bold tracking-[-0.02em]">{schoolName}</p>
+          <p className="min-w-0 flex-1 truncate text-sm font-bold tracking-[-0.02em]" title={schoolName}>
+            {schoolName}
+          </p>
         </header>
 
         <main id="main" className="min-w-0 flex-1">

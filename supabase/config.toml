@@ -24,7 +24,10 @@ port = 54323
 [auth]
 enabled = true
 site_url = "http://localhost:3000"
-additional_redirect_urls = ["http://localhost:3000/auth/callback"]
+additional_redirect_urls = [
+  "http://localhost:3000/auth/callback/",
+  "https://ahmedps520-svg.github.io/AgsV1/auth/callback/",
+]
 jwt_expiry = 3600
 enable_refresh_token_rotation = true
 enable_signup = false

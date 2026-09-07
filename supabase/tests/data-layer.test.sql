@@ -1,5 +1,5 @@
 -- ===========================================================================
--- Map Dismissals — data-layer test suite
+-- AGS Dismissals — data-layer test suite
 -- ---------------------------------------------------------------------------
 -- Exercises the dismissal state machine and every Row Level Security policy
 -- as a real Postgres role, so a policy that silently opens up a table fails

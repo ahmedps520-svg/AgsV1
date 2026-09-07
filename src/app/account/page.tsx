@@ -1,19 +1,24 @@
-import type { Metadata } from "next";
+"use client";
+
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { requireSession, homePathForRole } from "@/server/session";
+import { useRequireRole } from "@/components/auth/require-role";
+import { homePathForRole } from "@/lib/api/session";
 import { AccountForms } from "@/components/account/account-forms";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { Logo } from "@/components/logo";
+import { BootScreen } from "@/components/boot-screen";
 
-export const metadata: Metadata = { title: "Your account" };
-export const dynamic = "force-dynamic";
+export default function AccountPage() {
+  const { session, ready } = useRequireRole("any");
 
-export default async function AccountPage() {
-  const session = await requireSession("/account");
+  if (!ready || !session) return <BootScreen />;
 
   return (
-    <main id="main" className="mx-auto w-full max-w-xl px-5 pb-20 pt-[max(1.25rem,env(safe-area-inset-top))]">
+    <main
+      id="main"
+      className="mx-auto w-full max-w-xl px-5 pb-20 pt-[max(1.25rem,env(safe-area-inset-top))]"
+    >
       <div className="flex items-center justify-between gap-4">
         <Logo schoolName={session.school?.name} />
         <Link

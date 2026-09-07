@@ -17,7 +17,8 @@ import { Field, Input, Select, Switch } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { Avatar, EmptyState, ErrorMessage } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast";
-import { createAccountAction, updatePersonAction } from "@/server/actions/people";
+import { createAccountAction, updatePersonAction } from "@/lib/api/mutations";
+import { IS_DEMO } from "@/lib/api/config";
 import { cn } from "@/lib/utils";
 import type { ProfileRow, UserRole } from "@/lib/types/database";
 
@@ -246,6 +247,18 @@ function CreatePersonModal({ open, onClose }: { open: boolean; onClose: () => vo
       ) : (
         <form action={submit} className="space-y-4 pb-2">
           <input type="hidden" name="send_invite" value={sendInvite ? "on" : ""} />
+
+          {!IS_DEMO ? (
+            <div className="rounded-xl bg-brand-50 px-3.5 py-3 text-[12.5px] leading-relaxed text-brand-900 ring-1 ring-brand-600/15 dark:bg-brand-500/10 dark:text-brand-100 dark:ring-brand-400/20">
+              <p className="font-semibold">Logins are created in the Supabase dashboard.</p>
+              <p className="mt-1">
+                This site runs entirely in the browser, so it cannot hold the server key that
+                creates accounts. Go to <span className="font-mono">Authentication → Users → Add user</span>,
+                set the user metadata to the role and school id, and the profile appears here
+                automatically. DEPLOYMENT.md has the exact steps.
+              </p>
+            </div>
+          ) : null}
 
           <Field label="Full name" htmlFor="full_name">
             <Input id="full_name" name="full_name" required maxLength={120} data-autofocus />

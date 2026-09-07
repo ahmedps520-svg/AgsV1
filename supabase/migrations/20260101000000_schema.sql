@@ -1,5 +1,5 @@
 -- ===========================================================================
--- Map Dismissals — core schema
+-- AGS Dismissals — core schema
 -- ---------------------------------------------------------------------------
 -- Multi-tenant by `school_id`. Every table that holds school data carries the
 -- school id so Row Level Security can be expressed as a single, cheap check.

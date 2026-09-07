@@ -51,5 +51,7 @@ export function describeError(error: PostgrestError | Error | null | unknown): s
     return "Cannot reach the school server. Check your connection and try again.";
   }
 
+  if (error instanceof Error) return error.message;
+
   return message || "Something went wrong. Please try again.";
 }

@@ -1,40 +1,65 @@
-import type { Metadata } from "next";
-import { requireStaff } from "@/server/session";
-import { getHistory, schoolToday } from "@/server/queries/dismissal";
+"use client";
+
+import { Suspense, useCallback, useState } from "react";
+import { useRequireRole } from "@/components/auth/require-role";
+import { getHistory, schoolToday } from "@/lib/api/queries";
+import { useLoad } from "@/lib/api/use-load";
 import { PageBody, PageHeader } from "@/components/layout/page-header";
 import { HistoryView } from "@/components/admin/history-view";
+import { ErrorMessage, QueueSkeleton } from "@/components/ui/primitives";
 import { formatDate } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "History" };
-export const dynamic = "force-dynamic";
+export default function HistoryPage() {
+  return (
+    <Suspense fallback={null}>
+      <HistoryScreen />
+    </Suspense>
+  );
+}
 
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+function HistoryScreen() {
+  const { session, ready } = useRequireRole(["admin", "staff"]);
+  const school = session?.school ?? null;
 
-export default async function HistoryPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ date?: string }>;
-}) {
-  const session = await requireStaff("/history");
-  const school = session.school!;
-  const params = await searchParams;
+  const [date, setDate] = useState<string | null>(null);
+  const effectiveDate = date ?? (school ? schoolToday(school.timezone) : "");
 
-  const date =
-    params.date && DATE_PATTERN.test(params.date) ? params.date : schoolToday(school.timezone);
+  const load = useCallback(async () => {
+    if (!school || !effectiveDate) return null;
+    return getHistory(school.id, effectiveDate);
+  }, [school, effectiveDate]);
 
-  const rows = await getHistory(school.id, date);
+  const { data, error, loading } = useLoad(load, ready && Boolean(school));
 
-  const pickedUp = rows.filter((row) => row.status === "picked_up").length;
+  const pickedUp = (data ?? []).filter((row) => row.status === "picked_up").length;
 
   return (
     <PageBody>
       <PageHeader
         title="History"
-        description={`${formatDate(`${date}T12:00:00Z`, school.timezone)} · ${rows.length} request${
-          rows.length === 1 ? "" : "s"
-        }, ${pickedUp} completed.`}
+        description={
+          school && effectiveDate
+            ? `${formatDate(`${effectiveDate}T12:00:00Z`, school.timezone)} · ${
+                data?.length ?? 0
+              } request${(data?.length ?? 0) === 1 ? "" : "s"}, ${pickedUp} completed.`
+            : "Every dismissal, with the exact time each student was called."
+        }
       />
-      <HistoryView rows={rows} date={date} timeZone={school.timezone} />
+
+      {error ? <ErrorMessage className="mt-5">{error}</ErrorMessage> : null}
+
+      {loading || !data || !school ? (
+        <div className="mt-6">
+          <QueueSkeleton rows={4} />
+        </div>
+      ) : (
+        <HistoryView
+          rows={data}
+          date={effectiveDate}
+          timeZone={school.timezone}
+          onDateChange={setDate}
+        />
+      )}
     </PageBody>
   );
 }

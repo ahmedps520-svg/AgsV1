@@ -8,7 +8,7 @@ import { Field, Input, Select } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { EmptyState, ErrorMessage } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast";
-import { deleteClassroomAction, saveClassroomAction } from "@/server/actions/roster";
+import { deleteClassroomAction, saveClassroomAction } from "@/lib/api/mutations";
 import type { ClassroomRow, ProfileRow } from "@/lib/types/database";
 
 export function ClassroomsManager({

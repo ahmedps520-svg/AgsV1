@@ -1,164 +1,144 @@
-# Deploying Map Dismissals
+# Deploying AGS Dismissals
 
-Map Dismissals is a standard Next.js app plus a Supabase project. Deploy the app anywhere
-that runs Node 20+, and point it at your Supabase project.
+The app is a static export published to **GitHub Pages** by
+`.github/workflows/deploy-pages.yml`. Every push to `main` rebuilds and redeploys.
 
----
-
-## 1. Environment variables
-
-| Variable | Where it's used | Notes |
-| --- | --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | browser + server | `https://<ref>.supabase.co` |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | browser + server | Safe to expose — every request it makes is still filtered by Row Level Security |
-| `SUPABASE_SERVICE_ROLE_KEY` | **server only** | Used solely to create login accounts for a verified administrator. Never prefix it with `NEXT_PUBLIC_` |
-| `NEXT_PUBLIC_SITE_URL` | server | Your public origin, e.g. `https://dismissals.yourschool.edu`. Used to build invitation and password-reset links |
-
-Find the first three in *Project Settings → API* in the Supabase dashboard.
-
-> If `SUPABASE_SERVICE_ROLE_KEY` is missing the app still runs — administrators just see a
-> clear message when they try to create an account, instead of a crash.
+Live site: <https://ahmedps520-svg.github.io/AgsV1/>
 
 ---
 
-## 2. Prepare the Supabase project
+## 1. The site as published today — demo mode
 
-```bash
-npx supabase link --project-ref <your-project-ref>
-npx supabase db push
-```
+With no Supabase variables configured, the workflow builds the **demo**: a full school in
+the visitor's browser, with per-tab sign-in so one person can play teacher, parent and
+lobby board at once. It is safe to share — nothing is stored anywhere but the visitor's
+own device.
 
-Then, in the Supabase dashboard:
+Nothing else is needed for this. Push to `main`, wait for the "Deploy to GitHub Pages"
+workflow, and the site updates.
 
-1. **Authentication → Providers → Email**
-   - Turn **off** "Allow new users to sign up". Accounts are issued by school
-     administrators; self-service signup would let anyone create a parent account.
-   - Leave "Confirm email" on if you plan to use emailed invitations.
+> **HTTPS.** GitHub Pages serves `github.io` sites over HTTPS. In
+> *Settings → Pages*, make sure **Enforce HTTPS** is ticked so plain-HTTP requests are
+> redirected — the app's session cookies and service worker require it.
 
-2. **Authentication → URL Configuration**
-   - *Site URL*: `https://your-domain`
-   - *Redirect URLs*: add `https://your-domain/auth/callback`
+---
 
-3. **Database → Replication** (or *Realtime*)
-   - Confirm `dismissal_requests` is in the `supabase_realtime` publication. The migration
-     adds it, so this is just a sanity check.
+## 2. Connecting a real school
 
-4. **Create the first administrator.** There is no bootstrap screen by design — the first
-   account is created by you:
+### a. Create the Supabase project
 
-   ```sql
-   -- Run in the Supabase SQL editor.
-   insert into public.schools (name, slug, timezone)
-   values ('Your School', 'your-school', 'Asia/Riyadh')
-   returning id;
+1. New project at [supabase.com/dashboard](https://supabase.com/dashboard).
+2. Apply the schema:
+
+   ```bash
+   npx supabase link --project-ref <your-project-ref>
+   npx supabase db push
    ```
 
-   Then *Authentication → Users → Add user*, with **Auto Confirm** on and this user
-   metadata (paste the school id you just got back):
+3. **Authentication → Providers → Email:** turn **off** "Allow new users to sign up".
+   Accounts are issued by the school, never self-service.
+4. **Authentication → URL Configuration:**
+   - Site URL: `https://ahmedps520-svg.github.io/AgsV1/`
+   - Redirect URLs: add `https://ahmedps520-svg.github.io/AgsV1/auth/callback/`
+5. **Database → Replication:** confirm `dismissal_requests` is in the `supabase_realtime`
+   publication (the migration adds it — this is a sanity check).
 
-   ```json
-   {
-     "full_name": "Your Name",
-     "role": "admin",
-     "school_id": "<the school id>"
-   }
-   ```
+### b. Create the school and its first administrator
 
-   The `handle_new_user` trigger builds the matching profile. Sign in, and create everyone
-   else from **People**.
+There is no self-service sign-up by design. Run this in the SQL editor:
 
----
-
-## 3. Deploy the app
-
-### Vercel (recommended)
-
-1. Import the repository at [vercel.com/new](https://vercel.com/new).
-2. Framework preset: **Next.js**. Build command and output directory are detected.
-3. Add the four environment variables from step 1 to *Production* (and *Preview*, if you
-   use preview deployments — point those at a separate Supabase project).
-4. Deploy, then add your custom domain and set `NEXT_PUBLIC_SITE_URL` to match.
-
-### Render
-
-Create a **Web Service** from the repository:
-
-- **Runtime:** Node
-- **Build command:** `npm ci && npm run build`
-- **Start command:** `npm run start`
-- **Health check path:** `/login`
-- Add the same environment variables.
-
-A `render.yaml` is included, so you can also use Render's Blueprint flow and just fill in
-the environment variables it prompts for.
-
-### Anywhere else (Docker, Fly.io, a VPS)
-
-```bash
-npm ci
-npm run build
-npm run start        # serves on $PORT, default 3000
+```sql
+insert into public.schools (name, slug, timezone)
+values ('Advanced Generations International Schools', 'ags', 'Asia/Riyadh')
+returning id;
 ```
 
-Run it behind HTTPS. Secure cookies and the service worker both require it.
+Then **Authentication → Users → Add user**, with *Auto Confirm* on and this user metadata
+(paste the id the query returned):
 
----
-
-## 4. After the first deploy
-
-- **Set the timezone** in *Settings*. It drives every clock and decides which calendar day
-  a dismissal belongs to — get it right before your first pickup.
-- **Set up the hallway screen.** Create a `display` account in *People*, sign in on the TV
-  browser once, open `/board`, and press **Fullscreen**. The controls fade out after a few
-  seconds of no input. Turn on the chime if you want an audible cue.
-- **Tell parents to install the app.** On the `/parent` screen they'll see an "Add to your
-  home screen" prompt; on iOS it's *Share → Add to Home Screen*. Installed, **I'm Here** is
-  one tap from the lock screen.
-
----
-
-## PWA checklist
-
-The manifest, icons and service worker are already wired up. After a deploy, confirm:
-
-- [ ] `/manifest.webmanifest` returns JSON with `start_url: "/parent"`
-- [ ] `/sw.js` is served with `Cache-Control: public, max-age=0, must-revalidate`
-      (set in `next.config.ts`)
-- [ ] Lighthouse → *Installable* passes on `/parent`
-- [ ] With the network off, a hard refresh shows the offline screen rather than a browser
-      error
-
-The worker deliberately caches only the static shell. Supabase traffic is never cached —
-dismissal data must always be live, and a cached response could otherwise leak between
-accounts on a shared device. To ship a new shell, bump `VERSION` in `public/sw.js`.
-
-To regenerate the icons after changing the mark:
-
-```bash
-npm run icons
+```json
+{ "full_name": "Your Name", "role": "admin", "school_id": "<the school id>" }
 ```
 
+The `handle_new_user` trigger builds the matching profile.
+
+### c. Point the site at it
+
+**Settings → Secrets and variables → Actions → Variables** (not Secrets — these are
+public by design):
+
+| Variable | Value |
+| --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://<ref>.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | the anon / publishable key from *Project Settings → API* |
+
+Re-run the workflow (Actions → Deploy to GitHub Pages → Run workflow). The published site
+now talks to your database.
+
+> **Never add `SUPABASE_SERVICE_ROLE_KEY`.** A static site is delivered to every visitor's
+> browser; there is nowhere to keep a secret. The anon key is fine because every request
+> it makes is filtered by Row Level Security.
+
+### d. Add everyone else
+
+Sign in as the administrator and set up **Settings** (timezone first — it drives every
+clock), **Classes**, and **Students**.
+
+**Logins** are created in the Supabase dashboard, because the app cannot hold the key
+that creates accounts. For each teacher, parent, driver or display screen:
+
+*Authentication → Users → Add user*, Auto Confirm on, metadata:
+
+```json
+{ "full_name": "Fatima AlShehri", "role": "parent", "school_id": "<school id>" }
+```
+
+`role` is one of `admin`, `staff`, `parent`, `display`. The person appears on the
+**People** page immediately. Then, for parents and drivers, open **Students → Edit → Who
+may pick up** and link them — *this is the permission that matters*.
+
+If you later want in-app account creation, add a Supabase Edge Function that calls
+`auth.admin.createUser` with the service-role key held server-side, and have the People
+form call it. The form and the profile sync are already there.
+
 ---
 
-## Operating notes
+## 3. The hallway screen
 
-**Scale.** A dismissal window is bursty but small: a 1,000-student school generates on the
-order of a few hundred rows an afternoon. The queries are indexed on
-`(school_id, dismissal_date, status)`, and clients coalesce refetches, so Supabase's free
-tier comfortably covers a single school.
+Create a `display` account, sign in once on the TV's browser, open `/board/`, and press
+**Fullscreen**. Controls fade after a few seconds of no input. Turn on the chime for an
+audible cue when a name appears.
 
-**Multiple schools.** Every table is keyed by `school_id` and the RLS policies enforce it
-(there's a test for exactly this). One deployment can serve a whole district.
+---
 
-**End of day.** *End dismissal* on the dashboard cancels anything still open so tomorrow
-starts clean. Completed pickups stay in *History*.
+## 4. Parents
 
-**Backups.** Supabase takes daily backups on paid plans. On the free tier, schedule your
-own `pg_dump`; `dismissal_events` is your audit trail and worth keeping.
+On `/parent/` they see an "Add to your home screen" prompt (iOS: *Share → Add to Home
+Screen*). Installed, **I'm Here** is one tap from the lock screen.
 
-**Monitoring.** Watch the **Live / Reconnecting** pill — it's the fastest signal that
-Realtime is unhappy. Even fully disconnected, every surface still refreshes on a timer, so
-dismissal degrades rather than stops.
+PWA checklist after a deploy:
+
+- [ ] `/AgsV1/manifest.webmanifest` returns JSON with `start_url: "/AgsV1/parent/"`
+- [ ] Lighthouse → *Installable* passes on `/AgsV1/parent/`
+- [ ] With the network off, a hard refresh shows the offline screen
+
+The service worker caches only the static shell. Supabase traffic is never cached. To ship
+a new shell, bump `VERSION` in `public/sw.js`.
+
+---
+
+## 5. Other hosts
+
+The `out/` folder is plain static files; any static host works (Vercel, Netlify,
+Cloudflare Pages, Render static sites, an S3 bucket). Build with:
+
+```bash
+NEXT_PUBLIC_BASE_PATH= NEXT_PUBLIC_SITE_URL=https://your-domain npm run build
+```
+
+Leave `NEXT_PUBLIC_BASE_PATH` empty for a root domain. On a host that can set response
+headers, send `Content-Security-Policy: frame-ancestors 'none'` and
+`Strict-Transport-Security`; the app already ships the rest of its CSP as a meta tag.
 
 ---
 
@@ -166,10 +146,9 @@ dismissal degrades rather than stops.
 
 | Symptom | Cause | Fix |
 | --- | --- | --- |
-| Setup screen instead of the app | Supabase variables missing | Add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`, then redeploy |
-| "We couldn't load the queue" | Migrations not applied | `npx supabase db push` |
+| Site shows the demo, not my school | Variables not set, or workflow not re-run | Check *Actions → Variables*, then re-run the workflow |
+| "Couldn't load the queue" | Migrations not applied | `npx supabase db push` |
 | Pill stuck on **Reconnecting** | `dismissal_requests` not in the realtime publication, or a proxy blocking websockets | Check *Database → Replication*; allow `wss://` to `*.supabase.co` |
 | Parent sees no students | No guardian links | *Students → Edit → Who may pick up* |
-| Signed-in users bounce back to `/login` | `NEXT_PUBLIC_SITE_URL` doesn't match the real origin, so cookies are dropped | Set it to the exact public origin and redeploy |
-| Invitation emails never arrive | Supabase's built-in SMTP is heavily rate-limited | Configure your own SMTP in *Project Settings → Auth*, or hand out temporary passwords instead |
-| Account creation fails for an admin | `SUPABASE_SERVICE_ROLE_KEY` not set on the server | Add it as a server-side variable and redeploy |
+| Invitation / reset email lands on an error | Redirect URL missing | Add `…/AgsV1/auth/callback/` in *Authentication → URL Configuration* |
+| Deep link 404s after refresh | Pages served an old build | Wait for the workflow to finish; hard-refresh |

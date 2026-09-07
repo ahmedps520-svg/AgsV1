@@ -6,10 +6,10 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Textarea } from "@/components/ui/field";
 import { Avatar, ErrorMessage } from "@/components/ui/primitives";
-import { requestDismissalAction } from "@/server/actions/dismissal";
+import { requestDismissalAction } from "@/lib/api/mutations";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
-import type { GuardianStudent } from "@/server/queries/dismissal";
+import type { GuardianStudent } from "@/lib/api/queries";
 
 export function ArriveSheet({
   open,

@@ -1,30 +1,37 @@
-import type { Metadata } from "next";
-import { requireStaff } from "@/server/session";
-import { getClassrooms, getStudents } from "@/server/queries/dismissal";
-import { getPeople } from "@/server/queries/people";
+"use client";
+
+import { useCallback } from "react";
+import { useRequireRole } from "@/components/auth/require-role";
+import { getClassrooms, getPeople, getStudents } from "@/lib/api/queries";
+import { useLoad } from "@/lib/api/use-load";
 import { PageBody, PageHeader } from "@/components/layout/page-header";
 import { ClassroomsManager } from "@/components/admin/classrooms-manager";
+import { ErrorMessage, QueueSkeleton } from "@/components/ui/primitives";
 
-export const metadata: Metadata = { title: "Classes" };
-export const dynamic = "force-dynamic";
+export default function ClassroomsPage() {
+  const { session, ready } = useRequireRole(["admin", "staff"]);
+  const school = session?.school ?? null;
+  const isAdmin = session?.profile.role === "admin";
 
-export default async function ClassroomsPage() {
-  const session = await requireStaff("/classrooms");
-  const school = session.school!;
-  const isAdmin = session.profile.role === "admin";
+  const load = useCallback(async () => {
+    if (!school) return null;
+    const [classrooms, students, teachers] = await Promise.all([
+      getClassrooms(school.id),
+      getStudents(school.id, { limit: 2000 }),
+      getPeople(school.id, ["admin", "staff"]),
+    ]);
 
-  const [classrooms, students, teachers] = await Promise.all([
-    getClassrooms(school.id),
-    getStudents(school.id, { limit: 2000 }),
-    getPeople(school.id, ["admin", "staff"]),
-  ]);
-
-  const studentCounts: Record<string, number> = {};
-  for (const student of students) {
-    if (student.classroom_id) {
-      studentCounts[student.classroom_id] = (studentCounts[student.classroom_id] ?? 0) + 1;
+    const studentCounts: Record<string, number> = {};
+    for (const student of students) {
+      if (student.classroom_id) {
+        studentCounts[student.classroom_id] = (studentCounts[student.classroom_id] ?? 0) + 1;
+      }
     }
-  }
+
+    return { classrooms, teachers, studentCounts };
+  }, [school]);
+
+  const { data, error, loading } = useLoad(load, ready && Boolean(school));
 
   return (
     <PageBody>
@@ -32,12 +39,21 @@ export default async function ClassroomsPage() {
         title="Classes"
         description="Grades, rooms and homeroom teachers. Students inherit their class on the dismissal board."
       />
-      <ClassroomsManager
-        classrooms={classrooms}
-        teachers={teachers}
-        studentCounts={studentCounts}
-        canEdit={isAdmin}
-      />
+
+      {error ? <ErrorMessage className="mt-5">{error}</ErrorMessage> : null}
+
+      {loading || !data ? (
+        <div className="mt-6">
+          <QueueSkeleton rows={3} />
+        </div>
+      ) : (
+        <ClassroomsManager
+          classrooms={data.classrooms}
+          teachers={data.teachers}
+          studentCounts={data.studentCounts}
+          canEdit={Boolean(isAdmin)}
+        />
+      )}
     </PageBody>
   );
 }

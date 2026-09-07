@@ -20,16 +20,17 @@ import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { useLiveQueue } from "@/hooks/use-live-queue";
 import { useNow } from "@/hooks/use-now";
-import { fetchGuardianRequests } from "@/lib/live-queries";
-import { cancelRequestAction } from "@/server/actions/dismissal";
+import { getGuardianRequests } from "@/lib/api/queries";
+import { cancelRequestAction } from "@/lib/api/mutations";
 import { STATUS_META, isActive } from "@/lib/dismissal";
 import { cn, formatTime, ordinal, timeAgo } from "@/lib/utils";
 import { StatusTracker } from "@/components/parent/status-tracker";
 import { ArriveSheet } from "@/components/parent/arrive-sheet";
 import { InstallHint } from "@/components/parent/install-hint";
 import { LogoMark } from "@/components/logo";
+import { BRAND } from "@/lib/brand";
 import type { DismissalQueueRow, SchoolRow } from "@/lib/types/database";
-import type { GuardianStudent } from "@/server/queries/dismissal";
+import type { GuardianStudent } from "@/lib/api/queries";
 
 function greeting(date: Date, timeZone: string): string {
   const hour = Number(
@@ -64,7 +65,7 @@ export function ParentApp({
     [students],
   );
 
-  const load = React.useCallback(() => fetchGuardianRequests(studentIds), [studentIds]);
+  const load = React.useCallback(() => getGuardianRequests(studentIds), [studentIds]);
 
   const { rows, connection, refresh, error } = useLiveQueue<DismissalQueueRow>({
     channelName: `parent-requests:${studentIds.join("-").slice(0, 60) || "none"}`,
@@ -129,7 +130,7 @@ export function ParentApp({
           <LogoMark className="size-9" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-[15px] font-bold leading-tight tracking-[-0.02em]">
-              {school?.name ?? "Map Dismissals"}
+              {school?.name ?? BRAND.name}
             </p>
             <p className="flex items-center gap-1.5 truncate text-[12px] text-[var(--color-muted)]">
               <LiveDot connected={connection === "live"} />
@@ -380,7 +381,7 @@ function RequestCard({
       className={cn(
         "surface-card overflow-hidden p-4",
         row.status === "ready" && "ring-2 ring-emerald-500/40",
-        row.status === "called" && "ring-2 ring-brand-500/35",
+        row.status === "called" && "ring-2 ring-brand-500/40",
       )}
     >
       <div className="flex items-start gap-3.5">

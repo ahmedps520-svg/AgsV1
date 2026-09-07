@@ -1,15 +1,14 @@
-import type { Metadata } from "next";
+"use client";
+
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
-import { requireAdmin } from "@/server/session";
+import { useRequireRole } from "@/components/auth/require-role";
 import { PageBody, PageHeader } from "@/components/layout/page-header";
 import { SettingsForm } from "@/components/admin/settings-form";
+import { Skeleton } from "@/components/ui/primitives";
 
-export const metadata: Metadata = { title: "Settings" };
-export const dynamic = "force-dynamic";
-
-export default async function SettingsPage() {
-  const session = await requireAdmin("/settings");
+export default function SettingsPage() {
+  const { session, ready } = useRequireRole(["admin"]);
 
   return (
     <PageBody>
@@ -27,7 +26,14 @@ export default async function SettingsPage() {
         }
       />
       <div className="max-w-2xl">
-        <SettingsForm school={session.school!} />
+        {ready && session?.school ? (
+          <SettingsForm school={session.school} />
+        ) : (
+          <div className="mt-6 space-y-4">
+            <Skeleton className="h-56 rounded-2xl" />
+            <Skeleton className="h-64 rounded-2xl" />
+          </div>
+        )}
       </div>
     </PageBody>
   );

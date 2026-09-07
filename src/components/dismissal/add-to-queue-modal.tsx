@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { Avatar, EmptyState } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast";
-import { addToQueueAction } from "@/server/actions/dismissal";
+import { addToQueueAction } from "@/lib/api/mutations";
 import { cn } from "@/lib/utils";
-import type { StudentWithClassroom } from "@/server/queries/dismissal";
+import type { StudentWithClassroom } from "@/lib/api/queries";
 
 export function AddToQueueModal({
   open,

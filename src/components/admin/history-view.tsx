@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { CalendarClock, Download, Search } from "lucide-react";
 import { Input } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
@@ -15,12 +14,13 @@ export function HistoryView({
   rows,
   date,
   timeZone,
+  onDateChange,
 }: {
   rows: DismissalQueueRow[];
   date: string;
   timeZone: string;
+  onDateChange: (date: string) => void;
 }) {
-  const router = useRouter();
   const [term, setTerm] = React.useState("");
 
   const filtered = React.useMemo(() => {
@@ -87,7 +87,7 @@ export function HistoryView({
           type="date"
           value={date}
           max={new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date())}
-          onChange={(event) => router.push(`/history?date=${event.target.value}`)}
+          onChange={(event) => onDateChange(event.target.value)}
           aria-label="Choose a date"
           className="w-auto"
         />

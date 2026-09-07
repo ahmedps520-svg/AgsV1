@@ -13,7 +13,8 @@ export function ServiceWorker() {
     if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
 
     const register = () => {
-      navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {
+      const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+      navigator.serviceWorker.register(`${base}/sw.js`, { scope: `${base}/` }).catch(() => {
         // A failed registration must never break the app.
       });
     };

@@ -20,7 +20,7 @@ import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { useLiveQueue } from "@/hooks/use-live-queue";
 import { useNow } from "@/hooks/use-now";
-import { fetchQueue } from "@/lib/live-queries";
+import { getQueue } from "@/lib/api/queries";
 import { LANES, sortQueue } from "@/lib/dismissal";
 import { cn, formatDate } from "@/lib/utils";
 import {
@@ -28,13 +28,13 @@ import {
   cancelRequestAction,
   endSessionAction,
   setStatusAction,
-} from "@/server/actions/dismissal";
+} from "@/lib/api/mutations";
 import { QueueCard } from "@/components/dismissal/queue-card";
 import { AddToQueueModal } from "@/components/dismissal/add-to-queue-modal";
 import { ConnectionPill } from "@/components/dismissal/connection-pill";
 import { StatTiles } from "@/components/dismissal/stat-tiles";
 import type { DismissalQueueRow, DismissalStatus, SchoolRow } from "@/lib/types/database";
-import type { StudentWithClassroom } from "@/server/queries/dismissal";
+import type { StudentWithClassroom } from "@/lib/api/queries";
 
 type LaneId = (typeof LANES)[number]["id"];
 
@@ -52,7 +52,7 @@ export function DismissalDashboard({
   const toast = useToast();
   const now = useNow(1000);
 
-  const load = React.useCallback(() => fetchQueue(school.id, today), [school.id, today]);
+  const load = React.useCallback(() => getQueue(school.id, today), [school.id, today]);
 
   const { rows, connection, refresh, error } = useLiveQueue<DismissalQueueRow>({
     channelName: `dismissal-dashboard:${school.id}`,
@@ -332,7 +332,7 @@ export function DismissalDashboard({
           }
         />
       ) : (
-        <div className="mt-5 grid gap-4 xl:grid-cols-4">
+        <div className="mt-5 grid gap-4 md:grid-cols-2 min-[1600px]:grid-cols-4">
           {LANES.map((lane) => {
             const laneRows = lanes.get(lane.id) ?? [];
             return (
@@ -389,7 +389,7 @@ export function DismissalDashboard({
           <h2 className="mb-2.5 px-1 text-[13px] font-bold uppercase tracking-wider text-[var(--color-muted)]">
             Cancelled today
           </h2>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 min-[1600px]:grid-cols-4">
             <AnimatePresence initial={false}>
               {cancelledRows.map((row) => (
                 <motion.div key={row.id} layout="position">

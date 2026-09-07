@@ -1,9 +1,8 @@
-import type { Metadata } from "next";
+"use client";
+
 import { Building2 } from "lucide-react";
 import { LogoMark } from "@/components/logo";
 import { SignOutButton } from "@/components/auth/sign-out-button";
-
-export const metadata: Metadata = { title: "No school linked" };
 
 export default function NoSchoolPage() {
   return (
@@ -11,7 +10,7 @@ export default function NoSchoolPage() {
       id="main"
       className="mx-auto flex min-h-dvh w-full max-w-md flex-col items-center justify-center px-6 text-center"
     >
-      <LogoMark className="size-11" />
+      <LogoMark className="size-14" />
       <span className="mt-8 flex size-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300">
         <Building2 className="size-7" />
       </span>

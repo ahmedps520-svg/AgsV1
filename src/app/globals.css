@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* ==========================================================================
-   Map Dismissals — design tokens
+   AGS Dismissals — design tokens
    A single restrained palette drives the staff dashboard, the parent app and
    the dismissal board so the product reads as one system.
    ========================================================================== */
@@ -9,26 +9,46 @@
 @theme {
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
+  --font-display: var(--font-playfair), Georgia, "Times New Roman", serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 
-  /* Brand — a deep, calm indigo. Trustworthy without feeling institutional. */
-  --color-brand-50: oklch(0.971 0.014 285);
-  --color-brand-100: oklch(0.943 0.029 286);
-  --color-brand-200: oklch(0.894 0.057 286);
-  --color-brand-300: oklch(0.822 0.096 287);
-  --color-brand-400: oklch(0.729 0.145 289);
-  --color-brand-500: oklch(0.648 0.187 291);
-  --color-brand-600: oklch(0.578 0.213 292);
-  --color-brand-700: oklch(0.505 0.204 292);
-  --color-brand-800: oklch(0.432 0.174 292);
-  --color-brand-900: oklch(0.381 0.14 291);
-  --color-brand-950: oklch(0.263 0.104 292);
+  /* ------------------------------------------------------------------------
+     Advanced Generations International Schools
+     The crest navy (#1E3A73) as the brand ramp, with the crest gold as the
+     accent and its sky blue for secondary highlights.
+     ------------------------------------------------------------------------ */
+  --color-brand-50: oklch(0.968 0.013 258);
+  --color-brand-100: oklch(0.932 0.029 259);
+  --color-brand-200: oklch(0.876 0.055 260);
+  --color-brand-300: oklch(0.792 0.087 261);
+  --color-brand-400: oklch(0.678 0.121 262);
+  --color-brand-500: oklch(0.565 0.139 264);
+  --color-brand-600: oklch(0.463 0.126 264);
+  --color-brand-700: oklch(0.396 0.109 264);
+  --color-brand-800: oklch(0.339 0.09 264);
+  --color-brand-900: oklch(0.296 0.074 264);
+  --color-brand-950: oklch(0.216 0.055 265);
 
-  --color-canvas: oklch(0.977 0.003 265);
+  /* Crest gold — accents, the board's "now dismissing" label, highlights. */
+  --color-gold-50: oklch(0.975 0.025 90);
+  --color-gold-100: oklch(0.949 0.056 90);
+  --color-gold-200: oklch(0.902 0.104 90);
+  --color-gold-300: oklch(0.858 0.141 87);
+  --color-gold-400: oklch(0.822 0.163 84);
+  --color-gold-500: oklch(0.786 0.157 79);
+  --color-gold-600: oklch(0.688 0.139 68);
+  --color-gold-700: oklch(0.552 0.114 60);
+  --color-gold-800: oklch(0.452 0.09 58);
+  --color-gold-900: oklch(0.388 0.074 57);
+
+  /* Crest sky blue. */
+  --color-sky-brand: oklch(0.655 0.114 249);
+
+  --color-canvas: oklch(0.978 0.005 258);
   --color-surface: oklch(1 0 0);
-  --color-ink: oklch(0.21 0.02 265);
-  --color-muted: oklch(0.52 0.02 265);
-  --color-hairline: oklch(0.92 0.005 265);
+  --color-ink: oklch(0.235 0.031 264);
+  --color-muted: oklch(0.525 0.026 262);
+  --color-hairline: oklch(0.916 0.009 260);
 
   --radius-xl: 0.875rem;
   --radius-2xl: 1.125rem;
@@ -127,11 +147,11 @@
 
   @media (prefers-color-scheme: dark) {
     :root {
-      --color-canvas: oklch(0.16 0.012 265);
-      --color-surface: oklch(0.21 0.014 265);
-      --color-ink: oklch(0.97 0.003 265);
-      --color-muted: oklch(0.68 0.014 265);
-      --color-hairline: oklch(0.3 0.014 265);
+      --color-canvas: oklch(0.168 0.018 264);
+      --color-surface: oklch(0.218 0.022 264);
+      --color-ink: oklch(0.968 0.005 260);
+      --color-muted: oklch(0.686 0.018 262);
+      --color-hairline: oklch(0.312 0.021 264);
     }
   }
 
@@ -141,8 +161,13 @@
   }
 
   ::selection {
-    background: var(--color-brand-200);
+    background: var(--color-gold-200);
     color: var(--color-brand-950);
+  }
+
+  /* The crest wordmark and display headings. */
+  .font-display {
+    font-family: var(--font-display);
   }
 
   /* Numbers in clocks, timers and queue positions must not jitter. */
@@ -203,20 +228,20 @@
    ========================================================================== */
 
 .board-root {
-  --board-bg: oklch(0.145 0.02 275);
-  --board-elevated: oklch(0.205 0.028 277);
-  --board-ink: oklch(0.985 0.002 265);
-  --board-muted: oklch(0.72 0.02 270);
+  --board-bg: oklch(0.152 0.031 264);
+  --board-elevated: oklch(0.215 0.037 264);
+  --board-ink: oklch(0.985 0.003 260);
+  --board-muted: oklch(0.725 0.026 262);
   background:
-    radial-gradient(120% 80% at 12% -10%, oklch(0.34 0.13 292 / 0.55) 0%, transparent 55%),
-    radial-gradient(90% 70% at 95% 8%, oklch(0.4 0.1 235 / 0.35) 0%, transparent 60%),
+    radial-gradient(120% 80% at 12% -10%, oklch(0.33 0.1 264 / 0.65) 0%, transparent 55%),
+    radial-gradient(90% 70% at 95% 6%, oklch(0.5 0.09 80 / 0.22) 0%, transparent 58%),
     var(--board-bg);
   color: var(--board-ink);
   color-scheme: dark;
 }
 
 .board-root ::selection {
-  background: oklch(0.578 0.213 292 / 0.5);
+  background: oklch(0.463 0.126 264 / 0.6);
 }
 
 /* Long student names must never overflow the hero slot. */

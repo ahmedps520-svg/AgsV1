@@ -1,17 +1,16 @@
 # Builds the static export and publishes it to GitHub Pages on every push to
 # main.
 #
-# It supports BOTH ways GitHub can serve Pages, so it stays green whichever is
+# It supports EVERY way GitHub can serve Pages, so it stays green whichever is
 # configured under Settings → Pages → "Build and deployment" → Source:
 #
-#   • Source = "GitHub Actions"        → the deploy job below publishes.
-#   • Source = "Deploy from a branch"  → pick branch `gh-pages`, folder `/`.
-#                                        The build job force-pushes the built
-#                                        site there on every run.
-#
-# What will NOT work is "Deploy from a branch" pointed at `main`: that branch
-# holds the source, so GitHub's Jekyll builder serves the README instead of the
-# app.
+#   • "Deploy from a branch" → main / (root)   ← the current setting
+#         The build job commits the static export to the root of main
+#         (scripts/publish-to-root.mjs) and GitHub serves it as-is.
+#   • "Deploy from a branch" → gh-pages / (root)
+#         The build job force-pushes the export to gh-pages.
+#   • "GitHub Actions"
+#         The deploy job below publishes the uploaded artifact.
 #
 # To point the site at a real Supabase project instead of the built-in demo,
 # add these repository *variables* (Settings → Secrets and variables → Actions
@@ -45,6 +44,8 @@ jobs:
       build_type: ${{ steps.pages_source.outputs.build_type }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # needed to rebase the publish commit if main moved
 
       - uses: actions/setup-node@v4
         with:
@@ -67,6 +68,23 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
         run: npm run build
+
+      # Serves "Deploy from a branch → main / (root)". Pushes made with the
+      # workflow token do not trigger workflows, and [skip ci] guards it too.
+      - name: Publish the built site into the root of main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          node scripts/publish-to-root.mjs
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Published site is already up to date."
+            exit 0
+          fi
+          git commit -q -m "Publish site for ${GITHUB_SHA::7} [skip ci]"
+          git push -q origin HEAD:main \
+            || { git fetch -q origin main && git rebase -q origin/main && git push -q origin HEAD:main; }
+          echo "::notice title=Published::Built site committed to the root of main."
 
       # Serves the "Deploy from a branch → gh-pages" configuration.
       - name: Publish to the gh-pages branch

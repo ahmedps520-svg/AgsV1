@@ -18,9 +18,9 @@ import type {
  * nothing is ever sent anywhere.
  */
 
-const STORAGE_KEY = "ags-dismissals:demo-v1";
-const SESSION_KEY = "ags-dismissals:demo-session-v1";
-const CHANNEL = "ags-dismissals:demo";
+const STORAGE_KEY = "ags-dismissal:demo-v1";
+const SESSION_KEY = "ags-dismissal:demo-session-v1";
+const CHANNEL = "ags-dismissal:demo";
 
 /**
  * The school lives in localStorage (shared by every tab) but the signed-in

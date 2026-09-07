@@ -28,7 +28,7 @@ export function SetupNotice() {
       <LogoMark className="size-11" />
       <h1 className="mt-6 text-3xl font-extrabold tracking-[-0.03em]">Finish setting up</h1>
       <p className="mt-3 text-[15px] leading-relaxed text-[var(--color-muted)]">
-        AGS Dismissals needs a Supabase project for authentication, the database and real-time
+        AGS Dismissal needs a Supabase project for authentication, the database and real-time
         updates. Five steps and you&apos;re live.
       </p>
 

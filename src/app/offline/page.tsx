@@ -16,7 +16,7 @@ export default function OfflinePage() {
       </span>
       <h1 className="mt-5 text-2xl font-bold tracking-[-0.02em]">You&apos;re offline</h1>
       <p className="mt-2.5 text-[15px] leading-relaxed text-[var(--color-muted)]">
-        Dismissal updates are live, so AGS Dismissals needs a connection. Reconnect and this page
+        Dismissal updates are live, so AGS Dismissal needs a connection. Reconnect and this page
         will pick up right where it left off.
       </p>
       <p className="mt-6 rounded-xl bg-[var(--color-surface)] px-4 py-3 text-[13px] text-[var(--color-muted)] ring-1 ring-[var(--color-hairline)]">

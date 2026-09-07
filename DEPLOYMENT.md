@@ -1,4 +1,4 @@
-# Deploying AGS Dismissals
+# Deploying AGS Dismissal
 
 The app is a static export published to **GitHub Pages** by
 `.github/workflows/deploy-pages.yml`. Every push to `main` rebuilds and redeploys.

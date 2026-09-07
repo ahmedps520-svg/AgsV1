@@ -13,7 +13,7 @@ export default function AppError({
 }) {
   useEffect(() => {
     // Surface the failure to whatever error reporting the host provides.
-    console.error("AGS Dismissals error:", error);
+    console.error("AGS Dismissal error:", error);
   }, [error]);
 
   return (

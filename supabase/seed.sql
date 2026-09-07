@@ -1,5 +1,5 @@
 -- ===========================================================================
--- AGS Dismissals — demo seed
+-- AGS Dismissal — demo seed
 -- ---------------------------------------------------------------------------
 -- Loaded automatically by `supabase db reset` for LOCAL development.
 -- It creates sign-in accounts with well-known passwords: never run it against

@@ -1,4 +1,4 @@
-/* AGS Dismissals — service worker
+/* AGS Dismissal — service worker
  *
  * Scope is intentionally narrow:
  *   • the app shell and icons are precached so the parent PWA opens instantly;
@@ -11,7 +11,7 @@
  */
 
 const BASE_PATH = "__BASE_PATH__";
-const VERSION = "ags-dismissals-v1";
+const VERSION = "ags-dismissal-v1";
 const SHELL_CACHE = `${VERSION}-shell`;
 const ASSET_CACHE = `${VERSION}-assets`;
 const OFFLINE_URL = `${BASE_PATH}/offline/`;

@@ -149,7 +149,7 @@ export function Logo({
             tone === "dark" ? "text-white/60" : "text-[var(--color-muted)]",
           )}
         >
-          Dismissals
+          Dismissal
         </span>
       </span>
     </span>

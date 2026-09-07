@@ -8,7 +8,7 @@ export const BRAND = {
   shortName: "AGS",
   name: "Advanced Generations International Schools",
   nameArabic: "مدارس الأجيال المتطورة العالمية",
-  productName: "AGS Dismissals",
+  productName: "AGS Dismissal",
   tagline: "Dismissal, run calmly.",
   colors: {
     navy: "#1E3A73",

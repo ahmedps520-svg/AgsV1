@@ -26,8 +26,8 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ahmedps520-svg.gith
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: `${BRAND.productName} · ${BRAND.shortName}`,
-    template: `%s · ${BRAND.shortName} Dismissals`,
+    default: BRAND.productName,
+    template: `%s · ${BRAND.productName}`,
   },
   description:
     `Real-time dismissal for ${BRAND.name}. Parents tap when they arrive, staff call students from one live queue, and the dismissal board updates instantly.`,
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
   manifest: `${basePath}/manifest.webmanifest`,
   appleWebApp: {
     capable: true,
-    title: `${BRAND.shortName} Dismissals`,
+    title: `${BRAND.shortName} Dismissal`,
     statusBarStyle: "default",
   },
   formatDetection: { telephone: false },

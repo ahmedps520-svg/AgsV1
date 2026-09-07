@@ -1,4 +1,4 @@
-# AGS Dismissals
+# AGS Dismissal
 
 Real-time school dismissal for **Advanced Generations International Schools** —
 مدارس الأجيال المتطورة العالمية.
@@ -186,6 +186,11 @@ scripts/            icon generation from the crest, service-worker prep
 ## Live site
 
 Published to GitHub Pages at **<https://ahmedps520-svg.github.io/AgsV1/>**.
+
+> The folders `_next/`, `icons/`, the route folders (`dashboard/`, `parent/`, …)
+> and `index.html` at the root of this branch are the **published site**, not
+> source. Pages is configured to serve the root of `main`, and the deploy
+> workflow regenerates them on every push — never edit them by hand.
 
 With no Supabase project configured the site runs in **demo mode**: a complete
 school lives in the visitor's browser, and each browser tab keeps its own

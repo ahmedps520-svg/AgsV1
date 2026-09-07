@@ -8,7 +8,7 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: `${BRAND.productName} — ${BRAND.name}`,
-    short_name: `${BRAND.shortName} Dismissals`,
+    short_name: `${BRAND.shortName} Dismissal`,
     description:
       "Tap when you arrive, watch your student move through the queue, and know the moment they're ready.",
     id: `${basePath}/parent/`,

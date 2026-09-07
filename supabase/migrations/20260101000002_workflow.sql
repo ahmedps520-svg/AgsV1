@@ -1,5 +1,5 @@
 -- ===========================================================================
--- AGS Dismissals — dismissal workflow
+-- AGS Dismissal — dismissal workflow
 -- ---------------------------------------------------------------------------
 -- The queue is only ever mutated through the functions below. They own the
 -- state machine (who may move a request where, and which timestamps that

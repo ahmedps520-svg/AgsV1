@@ -1,5 +1,5 @@
 /**
- * Database types for the AGS Dismissals schema.
+ * Database types for the AGS Dismissal schema.
  *
  * Kept in sync by hand with `supabase/migrations`. If you change the schema,
  * regenerate with:

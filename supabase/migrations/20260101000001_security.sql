@@ -1,5 +1,5 @@
 -- ===========================================================================
--- AGS Dismissals — authorization helpers + Row Level Security
+-- AGS Dismissal — authorization helpers + Row Level Security
 -- ---------------------------------------------------------------------------
 -- Every policy is expressed in terms of the four helpers below. They are
 -- SECURITY DEFINER so that reading the caller's own profile does not re-enter

@@ -39,7 +39,8 @@ Published to GitHub Pages at **<https://ahmedps520-svg.github.io/AgsV1/>**.
 > The folders `_next/`, `icons/`, the route folders (`board/`, `students/`, …)
 > and `index.html` at the root of this branch are the **published site**, not
 > source. Pages serves the root of `main`, and the deploy workflow regenerates
-> them on every push — never edit them by hand. `.published` lists them.
+> them on every push — never edit them by hand, and never run
+> `scripts/publish-to-root.mjs` yourself. `.published` lists them.
 
 With no Supabase project configured the site runs in **demo mode**: a complete
 school (KG1–Grade 12, both sections, ~700 students) lives in the visitor's

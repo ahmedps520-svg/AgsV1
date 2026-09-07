@@ -1,6 +1,11 @@
 /**
  * Lays the static export down at the repository root.
  *
+ * RUN BY CI ONLY (.github/workflows/deploy-pages.yml). Running it locally and
+ * committing the result puts you in a tug-of-war with the workflow's own
+ * publish commit — every push then needs a rebase. Change the source, push,
+ * and let the workflow republish.
+ *
  * GitHub Pages is configured as "Deploy from a branch → main / (root)", which
  * serves whatever is at the root of main. So the deploy workflow builds the
  * app and then commits the output here, next to the source. `.nojekyll` (part

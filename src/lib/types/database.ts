@@ -49,11 +49,20 @@ export type ProfileRow = {
   updated_at: string;
 }
 
+export type ClassGender = "boys" | "girls" | "mixed";
+
 export type ClassroomRow = {
   id: string;
   school_id: string;
+  /** The class code teachers use: "7g1", "8b2", "KG2-A". */
   name: string;
+  /** Display label, e.g. "Grade 7" or "KG 2". */
   grade: string;
+  /** "KG1"–"KG3" or "1"–"12". */
+  level: string;
+  gender: ClassGender;
+  /** "1"–"6" for grades, "A"–"F" for kindergarten. */
+  section: string;
   room_number: string | null;
   teacher_id: string | null;
   created_at: string;
@@ -196,6 +205,10 @@ export type Database = {
         Args: { p_student_id: string; p_note?: string | null };
         Returns: DismissalRequestRow;
       };
+      staff_call_student: {
+        Args: { p_student_id: string };
+        Returns: DismissalRequestRow;
+      };
       set_request_status: {
         Args: { p_request_id: string; p_status: DismissalStatus };
         Returns: DismissalRequestRow;
@@ -217,6 +230,7 @@ export type Database = {
       user_role: UserRole;
       dismissal_status: DismissalStatus;
       request_source: RequestSource;
+      class_gender: ClassGender;
     };
     CompositeTypes: Record<string, never>;
   };

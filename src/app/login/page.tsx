@@ -3,15 +3,19 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { DoorOpen, Hand, Sparkles } from "lucide-react";
 import { homePathForRole, useSession } from "@/lib/api/session";
 import { IS_DEMO } from "@/lib/api/config";
+import { useI18n } from "@/lib/i18n/provider";
 import { BRAND } from "@/lib/brand";
-import { Logo, LogoArabic } from "@/components/logo";
+import { Logo, LogoArabic, LogoMark } from "@/components/logo";
+import { LanguageToggle } from "@/components/language-toggle";
 import { LoginForm } from "@/components/auth/login-form";
 import { BootScreen } from "@/components/boot-screen";
 
 export default function LoginPage() {
   const { session, status } = useSession();
+  const { t } = useI18n();
   const router = useRouter();
 
   useEffect(() => {
@@ -20,37 +24,34 @@ export default function LoginPage() {
 
   if (status === "loading" || session) return <BootScreen />;
 
+  const steps = [
+    { icon: Hand, text: t("landing.feature.parents.body") },
+    { icon: Sparkles, text: t("landing.feature.teachers.body") },
+    { icon: DoorOpen, text: t("landing.feature.classes.body") },
+  ];
+
   return (
     <main id="main" className="grid min-h-dvh lg:grid-cols-2">
-      {/* Form */}
-      <div className="flex flex-col justify-center px-6 py-12 sm:px-12 lg:px-16">
+      <div className="flex flex-col justify-center px-6 py-10 sm:px-12 lg:px-16">
         <div className="mx-auto w-full max-w-sm">
-          <Logo />
-          <h1 className="mt-9 text-3xl font-extrabold tracking-[-0.03em]">Welcome back</h1>
-          <p className="mt-2 text-[15px] text-[var(--color-muted)]">
-            Sign in to manage dismissal or check on your student.
-          </p>
+          <div className="flex items-center justify-between gap-3">
+            <Logo />
+            <LanguageToggle />
+          </div>
+          <h1 className="mt-9 text-3xl font-extrabold tracking-[-0.03em]">{t("login.title")}</h1>
+          <p className="mt-2 text-[15px] text-[var(--color-muted)]">{t("login.subtitle")}</p>
 
-          <LoginForm
-            notice={
-              IS_DEMO
-                ? null
-                : null
-            }
-          />
+          <LoginForm />
 
           {!IS_DEMO ? (
-            <p className="mt-8 text-[13px] leading-relaxed text-[var(--color-muted)]">
-              Accounts are issued by the school. If you don&apos;t have one yet, contact the school
-              office and they&apos;ll set you up in a minute.
-            </p>
+            <p className="mt-8 text-[13px] leading-relaxed text-[var(--color-muted)]">{t("login.accountsNote")}</p>
           ) : null}
 
           <Link
             href="/"
             className="mt-4 inline-block text-[13px] font-medium text-brand-600 hover:underline dark:text-brand-300"
           >
-            ← Back to overview
+            ← {t("common.back")}
           </Link>
         </div>
       </div>
@@ -62,45 +63,29 @@ export default function LoginPage() {
           aria-hidden
           className="absolute inset-0 opacity-[0.16] [background-image:radial-gradient(circle_at_1px_1px,white_1px,transparent_0)] [background-size:28px_28px]"
         />
-        {/* Gold crest sweep */}
-        <div
-          aria-hidden
-          className="absolute -right-24 top-1/4 size-[32rem] rounded-full bg-gold-500/10 blur-3xl"
-        />
+        <div aria-hidden className="absolute -end-24 top-1/4 size-[32rem] rounded-full bg-gold-500/10 blur-3xl" />
 
         <div className="relative flex h-full flex-col justify-between p-14 text-white">
-          <div>
-            <p className="text-[13px] font-semibold uppercase tracking-[0.22em] text-gold-300">
-              {BRAND.shortName}
-            </p>
-            <p className="mt-3 max-w-sm text-2xl font-bold leading-tight tracking-[-0.02em]">
-              {BRAND.name}
-            </p>
-            <LogoArabic className="mt-2 text-lg text-white/70" />
+          <div className="flex items-center gap-5">
+            <LogoMark className="size-24" />
+            <div>
+              <p className="text-2xl font-bold leading-tight tracking-[-0.02em]">{BRAND.name}</p>
+              <LogoArabic className="mt-1 text-lg text-white/75" />
+            </div>
           </div>
 
-          <blockquote className="max-w-md">
-            <p className="text-3xl font-bold leading-tight tracking-[-0.02em]">
-              &ldquo;Pickup used to take forty minutes and three radios. Now it&apos;s one screen and
-              everyone knows what&apos;s happening.&rdquo;
-            </p>
-            <footer className="mt-6 text-sm font-medium text-white/60">
-              Deputy Head of School
-            </footer>
-          </blockquote>
-
-          <div className="grid grid-cols-3 gap-6 border-t border-white/15 pt-8">
-            {[
-              { value: "< 1s", label: "Board update" },
-              { value: "3", label: "Taps to pick up" },
-              { value: "100%", label: "Auditable" },
-            ].map((stat) => (
-              <div key={stat.label}>
-                <p className="text-2xl font-extrabold tracking-tight">{stat.value}</p>
-                <p className="mt-1 text-[13px] text-white/60">{stat.label}</p>
-              </div>
+          <ol className="space-y-6">
+            {steps.map(({ icon: Icon, text }, index) => (
+              <li key={index} className="flex items-start gap-4">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/10">
+                  <Icon className="size-5 text-gold-300" />
+                </span>
+                <p className="max-w-md text-[17px] leading-relaxed text-white/85">{text}</p>
+              </li>
             ))}
-          </div>
+          </ol>
+
+          <p className="text-sm text-white/55">{t("app.tagline")}</p>
         </div>
       </aside>
     </main>

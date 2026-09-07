@@ -28,6 +28,7 @@ declare
   v_rooms    jsonb;
   v_ahmed    uuid;
   v_salman   uuid;
+  v_noura    uuid;
 begin
   -- ---------------------------------------------------------------- school --
   insert into public.schools (id, name, slug, timezone, dismissal_start, dismissal_end, board_message)
@@ -36,9 +37,9 @@ begin
     'Advanced Generations International Schools',
     'ags',
     'Asia/Riyadh',
-    '15:00',
-    '16:00',
-    'Please stay in your vehicle until your student is walked out.'
+    null,
+    null,
+    null
   )
   on conflict (id) do nothing;
 
@@ -98,18 +99,29 @@ begin
   update public.profiles set vehicle_description = 'Grey Hyundai Sonata · XYZ 8891'      where id = v_driver;
 
   -- ------------------------------------------------------------ classrooms --
+  -- AGS codes: KG lettered and mixed; grades split into boys (b) / girls (g).
   for v_room in
     select * from (values
-      ('7B',  'Grade 7', 'B-204', v_teacher),
-      ('7A',  'Grade 7', 'B-202', null::uuid),
-      ('3C',  'Grade 3', 'A-110', null::uuid),
-      ('3A',  'Grade 3', 'A-104', null::uuid),
-      ('KG2', 'KG 2',    'A-011', null::uuid),
-      ('5A',  'Grade 5', 'B-118', null::uuid)
-    ) as t(name, grade, room_number, teacher_id)
+      ('KG1-A', 'KG1', 'mixed', 'A', null::uuid),
+      ('KG2-A', 'KG2', 'mixed', 'A', null::uuid),
+      ('1b1',   '1',   'boys',  '1', null::uuid),
+      ('3b1',   '3',   'boys',  '1', null::uuid),
+      ('5g1',   '5',   'girls', '1', null::uuid),
+      ('7b1',   '7',   'boys',  '1', v_teacher),
+      ('7g1',   '7',   'girls', '1', null::uuid),
+      ('8b1',   '8',   'boys',  '1', null::uuid)
+    ) as t(name, level, gender, section, teacher_id)
   loop
-    insert into public.classrooms (school_id, name, grade, room_number, teacher_id)
-    values (v_school, v_room.name, v_room.grade, v_room.room_number, v_room.teacher_id)
+    insert into public.classrooms (school_id, name, grade, level, gender, section, teacher_id)
+    values (
+      v_school,
+      v_room.name,
+      case when v_room.level like 'KG%' then 'KG ' || right(v_room.level, 1) else 'Grade ' || v_room.level end,
+      v_room.level,
+      v_room.gender::public.class_gender,
+      v_room.section,
+      v_room.teacher_id
+    )
     on conflict (school_id, name) do nothing;
   end loop;
 
@@ -119,20 +131,21 @@ begin
   -- -------------------------------------------------------------- students --
   for v_student in
     select * from (values
-      -- Siblings deliberately share one family pickup number.
-      ('Ahmed',  'AlShehri', 'Grade 7', '7B',  '104'),
-      ('Salman', 'AlShehri', 'Grade 3', '3C',  '104'),
-      ('Noor',   'Rahman',   'Grade 7', '7A',  '211'),
-      ('Zayd',   'Hassan',   'Grade 3', '3A',  '307'),
-      ('Maryam', 'Idris',    'KG 2',    'KG2', '412'),
-      ('Layan',  'Othman',   'Grade 5', '5A',  '158'),
-      ('Bilal',  'Farouk',   'Grade 5', '5A',  '162'),
-      ('Hana',   'Mansour',  'Grade 7', '7B',  '190'),
-      ('Tariq',  'Aziz',     'KG 2',    'KG2', '223'),
-      ('Sara',   'Nabil',    'Grade 3', '3C',  '275')
+      ('Ahmed',   'AlShehri',  'Grade 7', '7b1',   null),
+      ('Salman',  'AlShehri',  'Grade 3', '3b1',   null),
+      ('Noura',   'AlShehri',  'Grade 5', '5g1',   null),
+      ('Faisal',  'AlQahtani', 'Grade 7', '7b1',   null),
+      ('Turki',   'AlGhamdi',  'Grade 7', '7b1',   null),
+      ('Reem',    'AlOtaibi',  'Grade 7', '7g1',   null),
+      ('Lama',    'AlHarbi',   'Grade 7', '7g1',   null),
+      ('Zayd',    'AlDosari',  'Grade 3', '3b1',   null),
+      ('Maryam',  'AlMutairi', 'KG 2',    'KG2-A', null),
+      ('Bandar',  'AlZahrani', 'Grade 8', '8b1',   null),
+      ('Hessa',   'AlSubaie',  'Grade 5', '5g1',   null),
+      ('Nawaf',   'AlAmri',    'Grade 1', '1b1',   null),
+      ('Sara',    'AlShammari','KG 1',    'KG1-A', null)
     ) as t(first_name, last_name, grade, room, pickup_number)
   loop
-    -- `students` has no natural key, so guard on name to stay re-runnable.
     if not exists (
       select 1 from public.students
       where school_id = v_school
@@ -153,14 +166,17 @@ begin
 
   select id into v_ahmed  from public.students where school_id = v_school and first_name = 'Ahmed'  and last_name = 'AlShehri';
   select id into v_salman from public.students where school_id = v_school and first_name = 'Salman' and last_name = 'AlShehri';
+  select id into v_noura  from public.students where school_id = v_school and first_name = 'Noura'  and last_name = 'AlShehri';
 
   -- --------------------------------------------------- pickup permissions --
   insert into public.guardians (student_id, profile_id, relationship, is_primary, can_pickup)
   values
     (v_ahmed,  v_parent, 'Mother', true,  true),
     (v_salman, v_parent, 'Mother', true,  true),
+    (v_noura,  v_parent, 'Mother', true,  true),
     (v_ahmed,  v_driver, 'Authorised driver', false, true),
-    (v_salman, v_driver, 'Authorised driver', false, true)
+    (v_salman, v_driver, 'Authorised driver', false, true),
+    (v_noura,  v_driver, 'Authorised driver', false, true)
   on conflict (student_id, profile_id) do nothing;
 end;
 $$;

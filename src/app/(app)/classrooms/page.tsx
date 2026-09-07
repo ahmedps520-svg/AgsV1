@@ -5,11 +5,13 @@ import { useRequireRole } from "@/components/auth/require-role";
 import { getClassrooms, getPeople, getStudents } from "@/lib/api/queries";
 import { useLoad } from "@/lib/api/use-load";
 import { PageBody, PageHeader } from "@/components/layout/page-header";
+import { useI18n } from "@/lib/i18n/provider";
 import { ClassroomsManager } from "@/components/admin/classrooms-manager";
 import { ErrorMessage, QueueSkeleton } from "@/components/ui/primitives";
 
 export default function ClassroomsPage() {
   const { session, ready } = useRequireRole(["admin", "staff"]);
+  const { t } = useI18n();
   const school = session?.school ?? null;
   const isAdmin = session?.profile.role === "admin";
 
@@ -35,10 +37,7 @@ export default function ClassroomsPage() {
 
   return (
     <PageBody>
-      <PageHeader
-        title="Classes"
-        description="Grades, rooms and homeroom teachers. Students inherit their class on the dismissal board."
-      />
+      <PageHeader title={t("classes.title")} description={t("classes.subtitle")} />
 
       {error ? <ErrorMessage className="mt-5">{error}</ErrorMessage> : null}
 

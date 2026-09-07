@@ -35,10 +35,8 @@ export function homePathForRole(role: UserRole): string {
   switch (role) {
     case "parent":
       return "/parent";
-    case "display":
-      return "/board";
     default:
-      return "/dashboard";
+      return "/board";
   }
 }
 

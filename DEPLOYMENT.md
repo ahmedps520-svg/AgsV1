@@ -30,10 +30,11 @@ While you are in the settings, set **Settings → General → Default branch** t
 
 ## 1. The site as published — demo mode
 
-With no Supabase variables configured, the workflow builds the **demo**: a full school in
-the visitor's browser, with per-tab sign-in so one person can play teacher, parent and
-lobby board at once. It is safe to share — nothing is stored anywhere but the visitor's
-own device.
+With no Supabase variables configured, the workflow builds the **demo**: a full
+school (KG1–Grade 12, boys and girls sections, ~700 students) in the visitor's
+browser, with per-tab sign-in so one person can be a teacher in one tab and a
+parent in another. It is safe to share — nothing is stored anywhere but the
+visitor's own device.
 
 Nothing else is needed for this. Push to `main`, wait for the "Deploy to GitHub Pages"
 workflow, and the site updates.

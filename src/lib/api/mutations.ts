@@ -16,12 +16,14 @@ import {
   demoUuid,
 } from "@/lib/api/demo-store";
 import type {
+  ClassGender,
   ClassroomRow,
   DismissalRequestRow,
   DismissalStatus,
   StudentRow,
   UserRole,
 } from "@/lib/types/database";
+import { classCode, isKg, levelLabel } from "@/lib/classes";
 import { describeError, fail, ok, type ActionResult } from "@/lib/api/result";
 
 /**
@@ -94,7 +96,7 @@ export async function requestDismissalAction(input: {
         }
         return demoCreateRequest({
           studentId,
-          status: "requested",
+          status: "called",
           source: "parent_app",
           requestedBy: profile.id,
           note: parsed.data.note ?? null,
@@ -208,8 +210,8 @@ export async function cancelRequestAction(input: {
         if (!state.school.allow_parent_cancel) {
           return fail("Your school asks that you contact the office to cancel a pickup.");
         }
-        if (!["requested", "waiting"].includes(row.status)) {
-          return fail("Your student has already been called — please speak to a staff member.");
+        if (!["requested", "waiting", "called", "ready"].includes(row.status)) {
+          return fail("The teacher has already marked your child as dismissed.");
         }
       }
 
@@ -256,11 +258,12 @@ export async function saveStudentAction(
   const first_name = text(formData, "first_name");
   if (!first_name) return fail("Enter the student's first name.");
 
+  const classroomId = text(formData, "classroom_id") || null;
   const payload = {
     first_name,
     last_name: text(formData, "last_name"),
     grade: text(formData, "grade"),
-    classroom_id: text(formData, "classroom_id") || null,
+    classroom_id: classroomId,
     pickup_number: text(formData, "pickup_number") || null,
     notes: text(formData, "notes") || null,
     is_active: formData.get("is_active") !== "false",
@@ -272,6 +275,8 @@ export async function saveStudentAction(
       requireDemoAdmin();
       return done(
         demoMutate((state) => {
+          const room = state.classrooms.find((candidate) => candidate.id === classroomId);
+          if (room) payload.grade = room.grade;
           if (id) {
             const student = state.students.find((candidate) => candidate.id === id);
             if (!student) throw new Error("That student could not be found.");
@@ -297,6 +302,15 @@ export async function saveStudentAction(
     const { data: profile } = await supabase.auth.getUser();
     const schoolId = await currentSchoolId();
     if (!schoolId || !profile.user) return fail("Your session has expired. Please sign in again.");
+
+    if (classroomId) {
+      const { data: room } = await supabase
+        .from("classrooms")
+        .select("grade")
+        .eq("id", classroomId)
+        .maybeSingle();
+      if (room) payload.grade = room.grade;
+    }
 
     const record = { ...payload, school_id: schoolId };
     const { data, error } = id
@@ -336,12 +350,21 @@ export async function saveClassroomAction(
   _prev: ActionResult<ClassroomRow> | null,
   formData: FormData,
 ): Promise<ActionResult<ClassroomRow>> {
-  const name = text(formData, "name");
-  if (!name) return fail("Give the class a name, e.g. 7B.");
+  const level = text(formData, "level");
+  const section = text(formData, "section").toUpperCase();
+  const genderInput = text(formData, "gender") as ClassGender;
+  const gender: ClassGender = isKg(level) ? "mixed" : genderInput === "girls" ? "girls" : "boys";
 
+  if (!level) return fail("Choose a grade.");
+  if (!section) return fail("Choose a section.");
+
+  const name = classCode({ level, gender, section });
   const payload = {
     name,
-    grade: text(formData, "grade"),
+    grade: levelLabel(level, "en"),
+    level,
+    gender,
+    section,
     room_number: text(formData, "room_number") || null,
     teacher_id: text(formData, "teacher_id") || null,
   };
@@ -355,12 +378,16 @@ export async function saveClassroomAction(
           const clash = state.classrooms.find(
             (room) => room.name.toLowerCase() === name.toLowerCase() && room.id !== id,
           );
-          if (clash) throw new Error("A class with that name already exists.");
+          if (clash) throw new Error("That class already exists.");
 
           if (id) {
             const room = state.classrooms.find((candidate) => candidate.id === id);
             if (!room) throw new Error("That class could not be found.");
             Object.assign(room, payload, { updated_at: new Date().toISOString() });
+            // Students carry the display grade, keep it in step.
+            for (const student of state.students) {
+              if (student.classroom_id === room.id) student.grade = payload.grade;
+            }
             return room;
           }
 
@@ -389,7 +416,7 @@ export async function saveClassroomAction(
     if (error) {
       return fail(
         (error as { code?: string }).code === "23505"
-          ? "A class with that name already exists."
+          ? "That class already exists."
           : describeError(error),
       );
     }
@@ -728,6 +755,48 @@ export async function sendPasswordResetAction(
     return fail(describeError(error));
   }
   return ok({ sent: true });
+}
+
+/* ------------------------------------------------------- class board ------ */
+
+/** Teacher taps the icon: the student has left with their guardian. */
+export async function dismissStudentAction(requestId: string) {
+  return setStatusAction({ requestId, status: "picked_up" });
+}
+
+/** Undo a dismissal: the name goes back to yellow. */
+export async function undoDismissAction(requestId: string) {
+  return setStatusAction({ requestId, status: "called" });
+}
+
+/**
+ * Fallback for a guardian who arrived without the parent app. Creates the
+ * call directly in the "called" state so the tile turns yellow at once.
+ */
+export async function callStudentManuallyAction(
+  studentId: string,
+): Promise<ActionResult<DismissalRequestRow>> {
+  try {
+    if (IS_DEMO) {
+      const profile = requireDemoStaff();
+      const row = demoCreateRequest({
+        studentId,
+        status: "called",
+        source: "staff",
+        requestedBy: profile.id,
+      });
+      if (row.status !== "called") demoSetStatus(row.id, "called", profile.id);
+      return done(row);
+    }
+
+    const { data, error } = await createClient().rpc("staff_call_student", {
+      p_student_id: studentId,
+    });
+    if (error) return fail(describeError(error));
+    return done(data as DismissalRequestRow);
+  } catch (error) {
+    return fail(describeError(error));
+  }
 }
 
 /* ----------------------------------------------------------------- utils -- */

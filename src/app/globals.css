@@ -7,8 +7,9 @@
    ========================================================================== */
 
 @theme {
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
+  --font-sans: var(--font-inter), var(--font-plex-arabic), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-arabic: var(--font-plex-arabic), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-playfair), Georgia, "Times New Roman", serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 
@@ -44,6 +45,14 @@
   /* Crest sky blue. */
   --color-sky-brand: oklch(0.655 0.114 249);
 
+  /* Class-board states: "called" is deliberately a loud, pure yellow that
+     reads from the back of a classroom; "dismissed" recedes to grey. */
+  --color-called: oklch(0.93 0.2 102);
+  --color-called-deep: oklch(0.86 0.19 96);
+  --color-called-ink: oklch(0.24 0.06 264);
+  --color-dismissed: oklch(0.82 0.006 260);
+  --color-dismissed-ink: oklch(0.42 0.012 260);
+
   --color-canvas: oklch(0.978 0.005 258);
   --color-surface: oklch(1 0 0);
   --color-ink: oklch(0.235 0.031 264);
@@ -63,6 +72,18 @@
   --animate-shimmer: shimmer 1.6s ease-in-out infinite;
   --animate-halo: halo 2.6s ease-out infinite;
   --animate-ticker: ticker 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-called: called-pulse 2.4s ease-in-out infinite;
+}
+
+/* A slow breathe on a freshly called tile so it catches the eye. */
+@keyframes called-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 oklch(0.93 0.2 102 / 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 14px oklch(0.93 0.2 102 / 0);
+  }
 }
 
 @keyframes rise {
@@ -182,6 +203,19 @@
   button {
     font: inherit;
   }
+
+  /* Arabic UI: lead with the Arabic face so Latin digits and codes match it. */
+  html[dir="rtl"] body {
+    font-family: var(--font-arabic);
+    letter-spacing: 0;
+  }
+
+  /* Class codes like 7g1 stay left-to-right inside Arabic sentences. */
+  .code {
+    direction: ltr;
+    unicode-bidi: isolate;
+    font-variant-numeric: tabular-nums;
+  }
 }
 
 /* ==========================================================================
@@ -266,6 +300,53 @@
 /* Hide the pointer on an unattended display. */
 .board-immersive {
   cursor: none;
+}
+
+/* ==========================================================================
+   Class board tiles
+   ========================================================================== */
+
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 7.5rem;
+  border-radius: 1.25rem;
+  padding: 1rem 1.1rem;
+  background: var(--board-elevated);
+  color: var(--board-ink);
+  border: 1px solid oklch(1 0 0 / 0.08);
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease,
+    transform 0.25s ease,
+    border-color 0.25s ease;
+}
+
+.tile-called {
+  background: linear-gradient(160deg, var(--color-called), var(--color-called-deep));
+  color: var(--color-called-ink);
+  border-color: transparent;
+  animation: var(--animate-called);
+}
+
+.tile-dismissed {
+  background: var(--color-dismissed);
+  color: var(--color-dismissed-ink);
+  border-color: transparent;
+}
+
+.tile-name {
+  font-size: clamp(1.15rem, 1.7vw, 1.9rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+html[dir="rtl"] .tile-name {
+  letter-spacing: 0;
 }
 
 /* ==========================================================================

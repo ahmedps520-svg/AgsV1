@@ -10,11 +10,13 @@ import {
 } from "@/lib/api/queries";
 import { useLoad } from "@/lib/api/use-load";
 import { PageBody, PageHeader } from "@/components/layout/page-header";
+import { useI18n } from "@/lib/i18n/provider";
 import { StudentsManager } from "@/components/admin/students-manager";
 import { ErrorMessage, QueueSkeleton } from "@/components/ui/primitives";
 
 export default function StudentsPage() {
   const { session, ready } = useRequireRole(["admin", "staff"]);
+  const { t } = useI18n();
   const school = session?.school ?? null;
   const isAdmin = session?.profile.role === "admin";
 
@@ -35,14 +37,7 @@ export default function StudentsPage() {
 
   return (
     <PageBody>
-      <PageHeader
-        title="Students"
-        description={
-          isAdmin
-            ? "Your roster, their classes, and who is allowed to collect them."
-            : "Your roster. Ask an administrator to make changes."
-        }
-      />
+      <PageHeader title={t("students.title")} description={t(isAdmin ? "students.subtitle" : "students.subtitleReadOnly")} />
 
       {error ? <ErrorMessage className="mt-5">{error}</ErrorMessage> : null}
 

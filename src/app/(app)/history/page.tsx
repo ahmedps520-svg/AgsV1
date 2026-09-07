@@ -8,6 +8,7 @@ import { PageBody, PageHeader } from "@/components/layout/page-header";
 import { HistoryView } from "@/components/admin/history-view";
 import { ErrorMessage, QueueSkeleton } from "@/components/ui/primitives";
 import { formatDate } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/provider";
 
 export default function HistoryPage() {
   return (
@@ -19,6 +20,7 @@ export default function HistoryPage() {
 
 function HistoryScreen() {
   const { session, ready } = useRequireRole(["admin", "staff"]);
+  const { t, locale } = useI18n();
   const school = session?.school ?? null;
 
   const [date, setDate] = useState<string | null>(null);
@@ -36,13 +38,11 @@ function HistoryScreen() {
   return (
     <PageBody>
       <PageHeader
-        title="History"
+        title={t("history.title")}
         description={
           school && effectiveDate
-            ? `${formatDate(`${effectiveDate}T12:00:00Z`, school.timezone)} · ${
-                data?.length ?? 0
-              } request${(data?.length ?? 0) === 1 ? "" : "s"}, ${pickedUp} completed.`
-            : "Every dismissal, with the exact time each student was called."
+            ? `${formatDate(`${effectiveDate}T12:00:00Z`, school.timezone, locale)} · ${t("history.summary", { count: data?.length ?? 0, done: pickedUp })}`
+            : t("history.subtitle")
         }
       />
 

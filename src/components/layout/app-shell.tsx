@@ -9,7 +9,6 @@ import {
   GraduationCap,
   LayoutGrid,
   Menu,
-  MonitorSpeaker,
   Settings,
   Users,
   UsersRound,
@@ -17,36 +16,29 @@ import {
 } from "lucide-react";
 import { Logo, LogoMark } from "@/components/logo";
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { LanguageToggle } from "@/components/language-toggle";
 import { Avatar } from "@/components/ui/primitives";
+import { useI18n } from "@/lib/i18n/provider";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/lib/types/database";
+import type { MessageKey } from "@/lib/i18n/dictionary";
 
-const ICONS = {
-  LayoutGrid,
-  MonitorSpeaker,
-  GraduationCap,
-  Users,
-  UsersRound,
-  CalendarClock,
-  Settings,
-} as const;
+const ICONS = { LayoutGrid, GraduationCap, Users, UsersRound, CalendarClock, Settings } as const;
 
 interface NavItem {
   href: string;
-  label: string;
+  labelKey: MessageKey;
   icon: keyof typeof ICONS;
   adminOnly?: boolean;
-  external?: boolean;
 }
 
 const NAV: NavItem[] = [
-  { href: "/dashboard", label: "Dismissal", icon: "LayoutGrid" },
-  { href: "/board", label: "Display board", icon: "MonitorSpeaker", external: true },
-  { href: "/students", label: "Students", icon: "GraduationCap" },
-  { href: "/classrooms", label: "Classes", icon: "Users" },
-  { href: "/people", label: "People", icon: "UsersRound", adminOnly: true },
-  { href: "/history", label: "History", icon: "CalendarClock" },
-  { href: "/settings", label: "Settings", icon: "Settings", adminOnly: true },
+  { href: "/board/", labelKey: "nav.board", icon: "LayoutGrid" },
+  { href: "/students", labelKey: "nav.students", icon: "GraduationCap" },
+  { href: "/classrooms", labelKey: "nav.classes", icon: "Users" },
+  { href: "/people", labelKey: "nav.people", icon: "UsersRound", adminOnly: true },
+  { href: "/history", labelKey: "nav.history", icon: "CalendarClock" },
+  { href: "/settings", labelKey: "nav.settings", icon: "Settings", adminOnly: true },
 ];
 
 export function AppShell({
@@ -63,6 +55,8 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const { t, dir } = useI18n();
+
   // Remembering *where* the drawer was opened means it closes itself on
   // navigation — including browser back — with no effect and no stale state.
   const [openedAt, setOpenedAt] = React.useState<string | null>(null);
@@ -72,16 +66,15 @@ export function AppShell({
   const items = NAV.filter((item) => !item.adminOnly || role === "admin");
 
   const nav = (
-    <nav className="flex-1 space-y-0.5 px-3" aria-label="Main">
+    <nav className="flex-1 space-y-0.5 px-3" aria-label={t("nav.admin")}>
       {items.map((item) => {
         const Icon = ICONS[item.icon];
-        const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+        const clean = item.href.replace(/\/$/, "");
+        const active = pathname === clean || pathname === item.href || pathname.startsWith(`${clean}/`);
         return (
           <Link
             key={item.href}
             href={item.href}
-            target={item.external ? "_blank" : undefined}
-            rel={item.external ? "noreferrer" : undefined}
             aria-current={active ? "page" : undefined}
             className={cn(
               "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition",
@@ -91,12 +84,7 @@ export function AppShell({
             )}
           >
             <Icon className="size-[18px] shrink-0" />
-            <span className="truncate">{item.label}</span>
-            {item.external ? (
-              <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider opacity-60">
-                TV
-              </span>
-            ) : null}
+            <span className="truncate">{t(item.labelKey)}</span>
           </Link>
         );
       })}
@@ -109,20 +97,25 @@ export function AppShell({
         <Avatar name={userName} size="sm" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13px] font-semibold">{userName}</p>
-          <p className="truncate text-[11.5px] text-[var(--color-muted)]">
-            <span className="capitalize">{role === "admin" ? "Administrator" : role}</span>
+          <p className="truncate text-[11.5px] text-[var(--color-muted)]" dir="ltr">
+            {t(`role.${role}`)}
             {userEmail ? ` · ${userEmail}` : ""}
           </p>
         </div>
       </div>
-      <SignOutButton compact className="mt-1" />
+      <div className="mt-1 px-2">
+        <LanguageToggle className="w-full justify-center" />
+      </div>
+      <SignOutButton compact className="mt-1" label={t("common.signOut")} />
     </div>
   );
+
+  const drawerOffset = dir === "rtl" ? "100%" : "-100%";
 
   return (
     <div className="flex min-h-dvh">
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-[var(--color-hairline)] bg-[var(--color-surface)] lg:flex">
+      <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-e border-[var(--color-hairline)] bg-[var(--color-surface)] lg:flex">
         <div className="min-w-0 px-5 py-5">
           <Logo schoolName={schoolName} compact />
         </div>
@@ -142,9 +135,9 @@ export function AppShell({
               className="absolute inset-0 bg-slate-950/40 backdrop-blur-[2px]"
             />
             <motion.aside
-              initial={{ x: "-100%" }}
+              initial={{ x: drawerOffset }}
               animate={{ x: 0 }}
-              exit={{ x: "-100%" }}
+              exit={{ x: drawerOffset }}
               transition={{ type: "spring", stiffness: 420, damping: 38 }}
               className="relative flex h-full w-72 flex-col bg-[var(--color-surface)] shadow-pop"
             >
@@ -153,7 +146,7 @@ export function AppShell({
                 <button
                   type="button"
                   onClick={() => setMenuOpen(false)}
-                  aria-label="Close menu"
+                  aria-label={t("nav.closeMenu")}
                   className="rounded-lg p-2 text-[var(--color-muted)] hover:bg-black/5 dark:hover:bg-white/10"
                 >
                   <X className="size-5" />
@@ -167,12 +160,11 @@ export function AppShell({
       </AnimatePresence>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Mobile top bar */}
         <header className="glass sticky top-0 z-30 flex items-center gap-3 border-b border-[var(--color-hairline)] px-4 py-3 lg:hidden">
           <button
             type="button"
             onClick={() => setMenuOpen(true)}
-            aria-label="Open menu"
+            aria-label={t("nav.openMenu")}
             className="rounded-lg p-2 text-[var(--color-ink)] transition hover:bg-black/5 dark:hover:bg-white/10"
           >
             <Menu className="size-5" />
@@ -181,6 +173,7 @@ export function AppShell({
           <p className="min-w-0 flex-1 truncate text-sm font-bold tracking-[-0.02em]" title={schoolName}>
             {schoolName}
           </p>
+          <LanguageToggle />
         </header>
 
         <main id="main" className="min-w-0 flex-1">

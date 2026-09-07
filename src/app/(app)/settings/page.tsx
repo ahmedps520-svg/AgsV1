@@ -6,22 +6,24 @@ import { useRequireRole } from "@/components/auth/require-role";
 import { PageBody, PageHeader } from "@/components/layout/page-header";
 import { SettingsForm } from "@/components/admin/settings-form";
 import { Skeleton } from "@/components/ui/primitives";
+import { useI18n } from "@/lib/i18n/provider";
 
 export default function SettingsPage() {
   const { session, ready } = useRequireRole(["admin"]);
+  const { t } = useI18n();
 
   return (
     <PageBody>
       <PageHeader
-        title="Dismissal settings"
-        description="These apply to every device in your school the moment you save."
+        title={t("settings.title")}
+        description={t("settings.subtitle")}
         action={
           <Link
             href="/account"
             className="inline-flex h-10 items-center gap-2 rounded-xl bg-[var(--color-surface)] px-4 text-sm font-medium shadow-soft ring-1 ring-inset ring-[var(--color-hairline)] transition hover:bg-black/[0.03] dark:hover:bg-white/[0.06]"
           >
             <ExternalLink className="size-4" />
-            Your account
+            {t("common.account")}
           </Link>
         }
       />

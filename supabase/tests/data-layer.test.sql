@@ -32,36 +32,36 @@ end $$;
 \set parent  '22222222-2222-4222-8222-222222222224'
 \set driver  '22222222-2222-4222-8222-222222222225'
 
-\echo '--- 1. Parent taps "I am Here" for both children ---'
+\echo '--- 1. Parent taps "I am Here" for two children ---'
 select public.act_as(:'parent');
 set role authenticated;
 
 select public.assert(count(*) = 2, 'request_dismissal creates one row per student')
 from public.request_dismissal(
-  array(select id from public.students where last_name = 'AlShehri' order by first_name),
+  array(select id from public.students where last_name = 'AlShehri' and first_name in ('Ahmed','Salman') order by first_name),
   'Parked in bay 3', 'White Land Cruiser · ABC 1234'
 );
 
 select public.assert(
-  count(*) = 2 and bool_and(status = 'requested') and bool_and(source = 'parent_app'),
-  'both requests start as requested from the parent app')
+  count(*) = 2 and bool_and(status = 'called') and bool_and(called_at is not null)
+    and bool_and(source = 'parent_app'),
+  'a parent''s "I''m here" creates the call itself: status called, called_at set')
 from public.dismissal_queue where student_name like '%AlShehri%';
 
 select public.assert(
   student_name = 'Ahmed AlShehri' and student_grade = 'Grade 7'
-    and classroom_name = '7B' and pickup_number = '104'
-    and guardian_name = 'Fatima AlShehri',
-  'student + guardian details are snapshotted onto the request')
+    and classroom_name = '7b1' and guardian_name = 'Fatima AlShehri',
+  'student, class code and guardian are snapshotted onto the request')
 from public.dismissal_queue where student_name = 'Ahmed AlShehri';
 
 \echo '--- 2. Tapping again is idempotent ---'
 select public.assert(count(*) = 2, 'a second tap returns the existing rows')
-from public.request_dismissal(array(select id from public.students where last_name = 'AlShehri'));
+from public.request_dismissal(array(select id from public.students where last_name = 'AlShehri' and first_name in ('Ahmed','Salman')));
 select public.assert(count(*) = 2, 'no duplicate requests were created')
 from public.dismissal_requests where student_name like '%AlShehri%';
 
 \echo '--- 3. RLS: a parent sees only their own children ---'
-select public.assert(count(*) = 2, 'parent reads exactly their 2 students') from public.students;
+select public.assert(count(*) = 3, 'parent reads exactly their 3 children') from public.students;
 select public.assert(count(*) = 0, 'parent cannot read another family''s student')
 from public.students where last_name = 'Rahman';
 select public.assert(count(*) = 2, 'parent reads only their own dismissal requests')
@@ -99,40 +99,40 @@ exception
   when insufficient_privilege then raise notice '  ok: direct UPDATE denied';
 end $$;
 
-\echo '--- 6. Queue position is visible and correct ---'
+\echo '--- 6. A parent call carries no queue position (it is immediate) ---'
 select public.assert(
-  (select queue_position from public.dismissal_queue where student_name = 'Ahmed AlShehri') = 1
-  and (select queue_length from public.dismissal_queue where student_name = 'Ahmed AlShehri') = 2,
-  'Ahmed is 1st of 2 in line');
+  (select queue_position from public.dismissal_queue where student_name = 'Ahmed AlShehri') is null,
+  'called students are not queued behind anyone');
 
-\echo '--- 7. Staff calls the next student ---'
+\echo '--- 7. The teacher dismisses the student from the class board ---'
 reset role;
 select public.act_as(:'teacher');
 set role authenticated;
 
-select public.assert(student_name = 'Ahmed AlShehri' and status = 'called' and called_at is not null,
-  'call_next_student() calls the longest-waiting student')
-from public.call_next_student();
-
-select public.assert(called_by = :'teacher'::uuid, 'the calling staff member is recorded')
-from public.dismissal_requests where student_name = 'Ahmed AlShehri';
-
-\echo '--- 8. Ready, then picked up ---'
-select public.assert(status = 'ready' and ready_at is not null and called_at is not null,
-  'marking ready keeps the called timestamp')
-from public.set_request_status(
-  (select id from public.dismissal_requests where student_name = 'Ahmed AlShehri'), 'ready');
-
 select public.assert(status = 'picked_up' and picked_up_at is not null and released_by = :'teacher'::uuid,
-  'picked up records who released the student')
+  'dismissing records who marked the student out')
 from public.set_request_status(
   (select id from public.dismissal_requests where student_name = 'Ahmed AlShehri'), 'picked_up');
 
+select public.assert(called_by is null and source = 'parent_app',
+  'the call is still attributed to the parent, not the teacher')
+from public.dismissal_requests where student_name = 'Ahmed AlShehri';
+
+\echo '--- 8. A guardian who arrived without the app: manual call ---'
+select public.assert(status = 'called' and called_by = :'teacher'::uuid and source = 'staff',
+  'staff_call_student() turns the tile yellow and records the teacher')
+from public.staff_call_student((select id from public.students where first_name = 'Bandar'));
+
+select public.assert(id = (select id from public.dismissal_requests where student_name = 'Bandar AlZahrani'),
+  'calling again reuses the same request')
+from public.staff_call_student((select id from public.students where first_name = 'Bandar'));
+
 \echo '--- 9. Undo clears the timestamps that no longer apply ---'
-select public.assert(status = 'ready' and picked_up_at is null and released_by is null,
-  'undoing a pickup clears picked_up_at')
+select public.assert(status = 'called' and picked_up_at is null and released_by is null
+    and called_by is null and called_at is not null,
+  'undoing a dismissal puts the name back to yellow and keeps the parent''s call')
 from public.set_request_status(
-  (select id from public.dismissal_requests where student_name = 'Ahmed AlShehri'), 'ready');
+  (select id from public.dismissal_requests where student_name = 'Ahmed AlShehri'), 'called');
 
 select public.assert(status = 'waiting' and called_at is null and ready_at is null,
   'undoing all the way back to waiting clears called_at and ready_at')
@@ -148,7 +148,7 @@ select public.assert(count(*) = 1, 'still exactly one request for Ahmed')
 from public.dismissal_requests where student_name = 'Ahmed AlShehri';
 
 \echo '--- 11. The audit trail records every transition ---'
-select public.assert(count(*) >= 6, 'dismissal_events logged each status change')
+select public.assert(count(*) >= 4, 'dismissal_events logged each status change')
 from public.dismissal_events e
 join public.dismissal_requests r on r.id = e.request_id
 where r.student_name = 'Ahmed AlShehri';
@@ -158,22 +158,22 @@ from public.dismissal_events e
 join public.dismissal_requests r on r.id = e.request_id
 where r.student_name = 'Ahmed AlShehri' and e.from_status is not null;
 
-\echo '--- 12. A parent may cancel while waiting, but not after being called ---'
+\echo '--- 12. A parent may cancel their call until the teacher dismisses ---'
 reset role;
 select public.act_as(:'parent');
 set role authenticated;
 
 select public.assert(status = 'cancelled' and cancelled_at is not null,
-  'parent cancels their own waiting request')
+  'parent cancels their own call while the child is still in class')
 from public.cancel_request(
   (select id from public.dismissal_requests where student_name = 'Salman AlShehri'), 'Bus today');
 
 reset role;
 select public.act_as(:'teacher');
 set role authenticated;
-select public.assert(status = 'called', 'staff calls Ahmed again')
+select public.assert(status = 'picked_up', 'teacher dismisses Ahmed')
 from public.set_request_status(
-  (select id from public.dismissal_requests where student_name = 'Ahmed AlShehri'), 'called');
+  (select id from public.dismissal_requests where student_name = 'Ahmed AlShehri'), 'picked_up');
 
 reset role;
 select public.act_as(:'parent');
@@ -182,27 +182,29 @@ do $$
 begin
   perform public.cancel_request(
     (select id from public.dismissal_requests where student_name = 'Ahmed AlShehri'));
-  raise exception 'ASSERTION FAILED: parent cancelled an already-called student';
+  raise exception 'ASSERTION FAILED: parent cancelled a dismissed student';
 exception
   when raise_exception then
     if sqlerrm like 'ASSERTION FAILED%' then raise; end if;
-    raise notice '  ok: parent blocked from cancelling after the call (%)', sqlerrm;
+    raise notice '  ok: parent blocked from cancelling after dismissal (%)', sqlerrm;
   when others then
-    raise notice '  ok: parent blocked from cancelling after the call (%)', sqlerrm;
+    raise notice '  ok: parent blocked from cancelling after dismissal (%)', sqlerrm;
 end $$;
 
 \echo '--- 13. An authorised driver has the same access as the parent ---'
 reset role;
 select public.act_as(:'driver');
 set role authenticated;
-select public.assert(count(*) = 2, 'the authorised driver sees both students') from public.students;
+select public.assert(count(*) = 3, 'the authorised driver sees the same three children') from public.students;
 
 \echo '--- 14. A display account is read-only ---'
 reset role;
 select public.act_as(:'board');
 set role authenticated;
 select public.assert(count(*) >= 1, 'the board can read the queue') from public.dismissal_queue;
-select public.assert(count(*) = 0, 'the board cannot read the student roster') from public.students;
+select public.assert(count(*) > 0, 'a classroom screen can read the roster for its board') from public.students;
+select public.assert(count(*) = 0, 'a classroom screen cannot read parent or staff profiles')
+from public.profiles where id <> auth.uid();
 do $$
 begin
   perform public.set_request_status(
@@ -280,7 +282,7 @@ do $$
 begin
   perform public.cancel_request(
     (select id from public.dismissal_requests
-      where student_name = 'Ahmed AlShehri' and status in ('requested','waiting')));
+      where student_name = 'Ahmed AlShehri' and status in ('requested','waiting','called')));
   raise exception 'ASSERTION FAILED: parent cancelled while the school forbids it';
 exception
   when insufficient_privilege then
@@ -296,10 +298,12 @@ update public.schools set allow_parent_cancel = true;
 reset role;
 select public.act_as(:'teacher');
 set role authenticated;
-select public.assert(status = 'cancelled', 'a request is cancelled first')
+-- Test 19 left Ahmed with an open call (the parent re-called him); cancel that one.
+select public.assert(status = 'cancelled', 'an open call is cancelled first')
 from public.cancel_request(
   (select id from public.dismissal_requests
-    where student_name = 'Ahmed AlShehri' and status <> 'cancelled' limit 1), 'Mistake');
+    where student_name = 'Ahmed AlShehri' and status in ('requested','waiting','called','ready') limit 1),
+  'Mistake');
 
 select public.assert(status = 'waiting' and cancelled_at is null and cancel_reason is null,
   'restoring a cancelled request clears the cancellation')

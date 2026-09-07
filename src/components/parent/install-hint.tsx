@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Share, SquarePlus, X } from "lucide-react";
 import { useClientFlag } from "@/hooks/use-client-flag";
+import { useI18n } from "@/lib/i18n/provider";
 
 const DISMISS_KEY = "map-dismissals:install-hint-dismissed";
 
@@ -32,6 +33,7 @@ function previouslyDismissed(): boolean {
  * between "I'm Here" being one tap or five.
  */
 export function InstallHint() {
+  const { t } = useI18n();
   const [deferred, setDeferred] = React.useState<InstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = React.useState(false);
 
@@ -62,17 +64,15 @@ export function InstallHint() {
   if (!visible) return null;
 
   return (
-    <div className="relative mt-7 flex items-start gap-3 rounded-2xl bg-[var(--color-surface)] p-4 pr-11 ring-1 ring-[var(--color-hairline)]">
+    <div className="relative mt-7 flex items-start gap-3 rounded-2xl bg-[var(--color-surface)] p-4 pe-11 ring-1 ring-[var(--color-hairline)]">
       <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300">
         {isIos ? <Share className="size-[18px]" /> : <SquarePlus className="size-[18px]" />}
       </span>
 
       <div className="min-w-0">
-        <p className="text-[14px] font-semibold">Add to your home screen</p>
+        <p className="text-[14px] font-semibold">{t("parent.install.title")}</p>
         <p className="mt-0.5 text-[13px] leading-relaxed text-[var(--color-muted)]">
-          {isIos
-            ? "Tap the Share button, then “Add to Home Screen” for one-tap pickup."
-            : "Install AGS Dismissal for one-tap pickup, even on a weak signal."}
+          {t(isIos ? "parent.install.ios" : "parent.install.android")}
         </p>
 
         {deferred ? (
@@ -85,7 +85,7 @@ export function InstallHint() {
             }}
             className="mt-2.5 rounded-lg bg-brand-600 px-3 py-1.5 text-[13px] font-semibold text-white transition hover:bg-brand-700"
           >
-            Install app
+            {t("parent.install.button")}
           </button>
         ) : null}
       </div>
@@ -93,8 +93,8 @@ export function InstallHint() {
       <button
         type="button"
         onClick={dismiss}
-        aria-label="Dismiss"
-        className="absolute right-2 top-2 rounded-lg p-2 text-[var(--color-muted)] transition hover:bg-black/5 dark:hover:bg-white/10"
+        aria-label={t("common.close")}
+        className="absolute end-2 top-2 rounded-lg p-2 text-[var(--color-muted)] transition hover:bg-black/5 dark:hover:bg-white/10"
       >
         <X className="size-4" />
       </button>

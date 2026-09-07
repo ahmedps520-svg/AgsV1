@@ -1,37 +1,26 @@
 "use client";
 
-import { useCallback } from "react";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { useRequireRole } from "@/components/auth/require-role";
-import { getQueue, schoolToday } from "@/lib/api/queries";
-import { useLoad } from "@/lib/api/use-load";
-import { BoardClient } from "@/components/board/board-client";
+import { ClassPicker } from "@/components/board/class-picker";
+import { ClassBoard } from "@/components/board/class-board";
 import { BootScreen } from "@/components/boot-screen";
 
 export default function BoardPage() {
+  return (
+    <Suspense fallback={<BootScreen />}>
+      <BoardScreen />
+    </Suspense>
+  );
+}
+
+function BoardScreen() {
   const { session, ready } = useRequireRole(["admin", "staff", "display"]);
-  const school = session?.school ?? null;
-  const today = school ? schoolToday(school.timezone) : "";
+  const params = useSearchParams();
+  const code = params.get("c");
 
-  const load = useCallback(async () => {
-    if (!school) return [];
-    try {
-      return await getQueue(school.id, today);
-    } catch {
-      // The board must come up even if the first read fails; the live hook
-      // retries on connect and on a timer after that.
-      return [];
-    }
-  }, [school, today]);
+  if (!ready || !session?.school) return <BootScreen />;
 
-  const { data, loading } = useLoad(load, ready && Boolean(school));
-
-  if (!ready || !school || (loading && !data)) {
-    return (
-      <div className="board-root min-h-dvh">
-        <BootScreen label="Starting the dismissal board…" />
-      </div>
-    );
-  }
-
-  return <BoardClient school={school} initialQueue={data ?? []} today={today} />;
+  return code ? <ClassBoard session={session} code={code} /> : <ClassPicker session={session} />;
 }

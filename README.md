@@ -1,50 +1,78 @@
 # AGS Dismissal
 
-Real-time school dismissal for **Advanced Generations International Schools** —
+Real-time dismissal for **Advanced Generations International Schools** —
 مدارس الأجيال المتطورة العالمية.
 
-Parents tap **I'm Here** from the pickup line, staff work a single live queue, and the
-board in the lobby updates the instant a student is called. No refreshing, no radios, no
-clipboard.
-
-**Live site:** <https://ahmedps520-svg.github.io/AgsV1/>
+A parent calls their child from the pickup line. The name turns **yellow** on
+that class's board. The teacher taps once when the student leaves and it turns
+**grey**. No radios, no shouting down the corridor.
 
 ```
-Parent taps "I'm Here"  →  Staff dashboard  →  Dismissal board  →  Parent's status card
-        (request)              (call)             (now dismissing)      (called / ready)
+Parent taps "I'm here"  →  the class board turns the name yellow
+                        →  teacher taps Dismiss  →  the name turns grey
 ```
 
----
+Every arrow is a Postgres change streamed over Supabase Realtime — not a poll,
+and not a demo that only updates the tab you are looking at.
 
-## Two ways to run it
+## How AGS is set up
 
-The same static bundle runs in one of two modes, decided at build time:
+- **Every class has its own board.** There is no shared school-wide queue.
+- **Parents do the calling.** Staff can call manually as a fallback when a
+  guardian arrives without the app.
+- **Class codes:** `7b1` is Grade 7, boys, section 1. `7g1` is the girls'
+  section. Kindergarten is mixed and lettered: `KG2-A`.
+- **Grades:** KG1–KG3 (mixed), Grades 1–12 (boys and girls in separate sections).
+- **Bilingual.** English and Arabic, switchable per device, with full RTL. Times
+  and dates follow the language; Asia/Riyadh drives every clock.
 
-| Mode | When | What happens |
+Signing in takes a teacher straight to their homeroom board, or to a picker:
+grade → boys/girls → section.
+
+> The parent-facing app at `/parent` is a **preview** of what a parent's call
+> does. The real parent app is a separate project.
+
+## Live site
+
+Published to GitHub Pages at **<https://ahmedps520-svg.github.io/AgsV1/>**.
+
+> The folders `_next/`, `icons/`, the route folders (`board/`, `students/`, …)
+> and `index.html` at the root of this branch are the **published site**, not
+> source. Pages serves the root of `main`, and the deploy workflow regenerates
+> them on every push — never edit them by hand. `.published` lists them.
+
+With no Supabase project configured the site runs in **demo mode**: a complete
+school (KG1–Grade 12, both sections, ~700 students) lives in the visitor's
+browser, and each browser tab keeps its own sign-in — so open a teacher in one
+tab and a parent in another and watch a call move the board.
+
+Demo accounts (no password needed — tap one on the sign-in screen):
+
+| Email | Role | What it shows |
 | --- | --- | --- |
-| **Demo** | No Supabase variables set (the published site today) | A complete school lives in the visitor's browser. Every tab keeps its own sign-in, so you can be a teacher in one tab, a parent in another and the lobby board in a third — and watch them stay in step. Nothing leaves the device. |
-| **Supabase** | `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` set | A real school. Every read and write goes to Postgres, where Row Level Security and the workflow functions enforce the rules. Realtime streams changes to every connected device. |
+| `admin@ags.demo` | Administrator | Classes, students, people, settings |
+| `teacher@ags.demo` | Teacher | Opens 7b1 |
+| `teacher.girls@ags.demo` | Teacher | Opens 5g1 |
+| `screen@ags.demo` | Classroom screen | A board it cannot change |
+| `parent@ags.demo` | Parent | Ahmed (7b1), Salman (3b1), Noura (5g1) |
+| `driver@ags.demo` | Driver | The same three children |
 
-Switching the published site to a real school is two repository variables — see
-[DEPLOYMENT.md](./DEPLOYMENT.md).
-
----
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for the Pages setting and for connecting a
+real Supabase project.
 
 ## What's in the box
 
 | Surface | Route | Who | What it does |
 | --- | --- | --- | --- |
-| **Staff dashboard** | `/dashboard` | Teachers, admins | Live queue in four lanes (Arrived → Called → Ready → Picked up), search by name/grade/class/pickup number, Call Next, one-tap status changes, undo, cancel, restore, end-of-day close-out |
-| **Dismissal board** | `/board` | Lobby TV, projector | Fullscreen "NOW DISMISSING" hero, animated name entry, recently called, ready list, live clock, queue counts, optional chime |
-| **Parent app** | `/parent` | Parents, authorised drivers | Their students only, a big **I'm Here** button, live status tracker (Request Sent → Waiting → Called → Ready → Picked Up), queue position, cancel |
-| **Students** | `/students` | Staff (read), admin (edit) | Roster, classes, pickup numbers, and who is allowed to collect each student |
-| **Classes** | `/classrooms` | Staff (read), admin (edit) | Grades, rooms, homeroom teachers |
-| **People** | `/people` | Admin | Staff, parents, drivers and display accounts |
-| **History** | `/history` | Staff | Every dismissal for a chosen day, with exact timestamps and CSV export |
-| **Settings** | `/settings` | Admin | Timezone, dismissal window, queue-position visibility, pickup numbers, parent cancellation, board message |
-| **Account** | `/account` | Everyone | Own details, vehicle description, password |
-
----
+| **Class picker** | `/board` | Teachers, admins | Grade → boys/girls → section; your own classes pinned on top |
+| **Class board** | `/board?c=7b1` | Teachers, classroom screens | Every name as a tile: yellow when called, grey when dismissed. One tap to dismiss, one to undo, one to call manually. Fullscreen and an optional chime |
+| **Parent preview** | `/parent` | Parents, drivers | Their children only, a big **I'm here**, live status, cancel |
+| **Students** | `/students` | Staff (read), admin (edit) | Roster, class assignment, pickup permissions |
+| **Classes** | `/classrooms` | Staff (read), admin (edit) | Class codes, rooms, homeroom teachers |
+| **People** | `/people` | Admin | Accounts for teachers, parents, drivers, screens |
+| **History** | `/history` | Staff | Every call and dismissal with exact times, CSV export |
+| **Settings** | `/settings` | Admin | School name, timezone, parent-cancel rule, board message |
+| **Account** | `/account` | Everyone | Own details, vehicle, password, language |
 
 ## Stack
 
@@ -73,26 +101,6 @@ npx supabase db reset          # applies migrations, then supabase/seed.sql
 npm run dev
 ```
 
-### Demo accounts
-
-The demo (and `supabase/seed.sql`) ship with a school, ten students and these logins.
-In demo mode just click the account on the sign-in page; against local Supabase the
-password is `Dismissal123!`.
-
-| Email | Role | Try this |
-| --- | --- | --- |
-| `admin@ags.demo` | Administrator | Manage the roster, accounts and settings |
-| `teacher@ags.demo` | Staff | Run the queue at `/dashboard` |
-| `board@ags.demo` | Display | Open `/board` on a second screen |
-| `parent@ags.demo` | Parent | Tap **I'm Here** for Ahmed and Salman AlShehri |
-| `driver@ags.demo` | Driver | The same two students, via a different account |
-
-**The three-tab demo:** sign in as the teacher in one tab, the parent in a second, the
-display in a third. Tap **I'm Here** as the parent and watch the request land on the
-dashboard; press **Call next** and watch the board and the parent's tracker move.
-
----
-
 ## How it works
 
 ### Database
@@ -108,17 +116,26 @@ schools ──┬── profiles (1:1 with auth.users, carries the role)
 creation, so the board is a single-table read and history stays truthful after a student
 changes class. The `dismissal_queue` view adds each request's live `queue_position`.
 
-### The state machine
+### The lifecycle
 
 ```
-requested ──▶ waiting ──▶ called ──▶ ready ──▶ picked_up
-    │            │           │          │
-    └────────────┴───────────┴──────────┴──▶ cancelled
+(nothing)  ──parent taps "I'm here"──▶  called  ──teacher taps Dismiss──▶  picked_up
+                                          │                                    │
+                                          └──────── cancelled ◀────────────────┘
+                                             (parent, before dismissal)
 ```
 
-Staff can move a request backwards to undo a mistake; doing so clears the timestamps that
-no longer apply. A partial unique index guarantees **one active request per student**, so
-a double tap is a no-op rather than a duplicate.
+A parent's call **is** the call: `request_dismissal()` creates the row already
+in `called`, with `called_at` set, so the tile turns yellow immediately. The
+teacher moves it to `picked_up`, and undo puts it back — keeping the parent's
+original call time and attribution either way.
+
+`staff_call_student()` is the fallback for a guardian who arrived without the
+app; it records the teacher as the caller.
+
+A partial unique index guarantees **one active call per student**, so a parent
+tapping twice, or a teacher calling an already-called student, is a no-op
+rather than a duplicate.
 
 ### Security
 
@@ -182,23 +199,6 @@ supabase/
 .github/workflows/  build + deploy to GitHub Pages
 scripts/            icon generation from the crest, service-worker prep
 ```
-
-## Live site
-
-Published to GitHub Pages at **<https://ahmedps520-svg.github.io/AgsV1/>**.
-
-> The folders `_next/`, `icons/`, the route folders (`dashboard/`, `parent/`, …)
-> and `index.html` at the root of this branch are the **published site**, not
-> source. Pages is configured to serve the root of `main`, and the deploy
-> workflow regenerates them on every push — never edit them by hand.
-
-With no Supabase project configured the site runs in **demo mode**: a complete
-school lives in the visitor's browser, and each browser tab keeps its own
-sign-in — so open the teacher in one tab, a parent in another and the lobby
-board in a third, and watch a call move all three at once.
-
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for the one-time Pages source setting and
-for connecting a real Supabase project.
 
 ## Deployment
 

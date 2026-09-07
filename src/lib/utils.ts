@@ -13,12 +13,30 @@ export function initials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+export type IntlLocale = "en" | "ar";
+
+/**
+ * The BCP-47 tag to format with.
+ *
+ * Arabic is pinned to the Gregorian calendar and Latin digits: `ar-SA` would
+ * otherwise render Hijri dates and Eastern Arabic numerals, which is not what a
+ * school timetable means, and Latin digits sit correctly beside class codes
+ * like 7b1.
+ */
+function tag(locale: IntlLocale = "en"): string {
+  return locale === "ar" ? "ar-SA-u-ca-gregory-nu-latn" : "en-US";
+}
+
 /** 3:42 PM, rendered in the school's timezone so every device agrees. */
-export function formatTime(value: string | Date | null | undefined, timeZone?: string): string {
+export function formatTime(
+  value: string | Date | null | undefined,
+  timeZone?: string,
+  locale: IntlLocale = "en",
+): string {
   if (!value) return "";
   const date = typeof value === "string" ? new Date(value) : value;
   if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat(tag(locale), {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
@@ -26,10 +44,14 @@ export function formatTime(value: string | Date | null | undefined, timeZone?: s
   }).format(date);
 }
 
-export function formatDate(value: string | Date, timeZone?: string): string {
+export function formatDate(
+  value: string | Date,
+  timeZone?: string,
+  locale: IntlLocale = "en",
+): string {
   const date = typeof value === "string" ? new Date(value) : value;
   if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat(tag(locale), {
     weekday: "long",
     month: "long",
     day: "numeric",
@@ -37,23 +59,22 @@ export function formatDate(value: string | Date, timeZone?: string): string {
   }).format(date);
 }
 
-/** "just now" / "4m ago" / "1h 12m ago" — compact enough for a queue card. */
-export function timeAgo(value: string | Date | null | undefined, now: number = Date.now()): string {
+/** "just now" / "4 min ago" / "منذ ٤ دقائق" — compact enough for a card. */
+export function timeAgo(
+  value: string | Date | null | undefined,
+  now: number = Date.now(),
+  locale: IntlLocale = "en",
+): string {
   if (!value) return "";
   const date = typeof value === "string" ? new Date(value) : value;
   const seconds = Math.max(0, Math.floor((now - date.getTime()) / 1000));
 
-  if (seconds < 10) return "just now";
-  if (seconds < 60) return `${seconds}s ago`;
+  const relative = new Intl.RelativeTimeFormat(tag(locale), { numeric: "auto", style: "short" });
 
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-
-  const hours = Math.floor(minutes / 60);
-  const remainder = minutes % 60;
-  if (hours < 24) return remainder ? `${hours}h ${remainder}m ago` : `${hours}h ago`;
-
-  return `${Math.floor(hours / 24)}d ago`;
+  if (seconds < 45) return relative.format(0, "second");
+  if (seconds < 3600) return relative.format(-Math.round(seconds / 60), "minute");
+  if (seconds < 86_400) return relative.format(-Math.round(seconds / 3600), "hour");
+  return relative.format(-Math.round(seconds / 86_400), "day");
 }
 
 /** Elapsed time as a running clock: "04:31". Used for wait timers. */

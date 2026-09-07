@@ -83,6 +83,20 @@ export const STATUS_META: Record<DismissalStatus, StatusMeta> = {
 
 export const ACTIVE_STATUSES: DismissalStatus[] = ["requested", "waiting", "called", "ready"];
 
+/**
+ * What a class board shows for a student today:
+ *   present   — nobody has called them yet
+ *   called    — a guardian is here (yellow)
+ *   dismissed — the teacher marked them out (grey)
+ */
+export type BoardState = "present" | "called" | "dismissed";
+
+export function boardState(row: { status: DismissalStatus } | null | undefined): BoardState {
+  if (!row || row.status === "cancelled") return "present";
+  if (row.status === "picked_up") return "dismissed";
+  return "called";
+}
+
 export function isActive(status: DismissalStatus): boolean {
   return ACTIVE_STATUSES.includes(status);
 }

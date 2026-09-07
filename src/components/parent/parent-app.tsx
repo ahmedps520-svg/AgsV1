@@ -2,17 +2,7 @@
 
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  CalendarClock,
-  Car,
-  CircleUser,
-  Hand,
-  Hash,
-  Info,
-  MessageSquareText,
-  ShieldAlert,
-  X,
-} from "lucide-react";
+import { CalendarClock, Car, CircleUser, Hand, Info, MessageSquareText, ShieldAlert, Smartphone, X } from "lucide-react";
 import Link from "next/link";
 import { Avatar, EmptyState, ErrorMessage, LiveDot } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/button";
@@ -22,23 +12,24 @@ import { useLiveQueue } from "@/hooks/use-live-queue";
 import { useNow } from "@/hooks/use-now";
 import { getGuardianRequests } from "@/lib/api/queries";
 import { cancelRequestAction } from "@/lib/api/mutations";
-import { STATUS_META, isActive } from "@/lib/dismissal";
-import { cn, formatTime, ordinal, timeAgo } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/provider";
+import { boardState, isActive } from "@/lib/dismissal";
+import { classLabel } from "@/lib/classes";
+import { cn, formatTime, timeAgo } from "@/lib/utils";
 import { StatusTracker } from "@/components/parent/status-tracker";
 import { ArriveSheet } from "@/components/parent/arrive-sheet";
 import { InstallHint } from "@/components/parent/install-hint";
+import { LanguageToggle } from "@/components/language-toggle";
 import { LogoMark } from "@/components/logo";
 import { BRAND } from "@/lib/brand";
 import type { DismissalQueueRow, SchoolRow } from "@/lib/types/database";
 import type { GuardianStudent } from "@/lib/api/queries";
 
-function greeting(date: Date, timeZone: string): string {
-  const hour = Number(
-    new Intl.DateTimeFormat("en-US", { hour: "numeric", hour12: false, timeZone }).format(date),
-  );
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
+function greetingKey(date: Date, timeZone: string) {
+  const hour = Number(new Intl.DateTimeFormat("en-US", { hour: "numeric", hour12: false, timeZone }).format(date));
+  if (hour < 12) return "parent.greeting.morning" as const;
+  if (hour < 17) return "parent.greeting.afternoon" as const;
+  return "parent.greeting.evening" as const;
 }
 
 export function ParentApp({
@@ -49,13 +40,14 @@ export function ParentApp({
   initialRequests,
   autoOpenArrive,
 }: {
-  school: Pick<SchoolRow, "id" | "name" | "timezone" | "show_queue_position" | "show_pickup_number" | "allow_parent_cancel" | "board_message"> | null;
+  school: Pick<SchoolRow, "id" | "name" | "timezone" | "allow_parent_cancel" | "board_message"> | null;
   guardianName: string;
   defaultVehicle: string | null;
   students: GuardianStudent[];
   initialRequests: DismissalQueueRow[];
   autoOpenArrive: boolean;
 }) {
+  const { t, locale } = useI18n();
   const toast = useToast();
   const now = useNow(1000);
   const timeZone = school?.timezone ?? "UTC";
@@ -64,7 +56,6 @@ export function ParentApp({
     () => students.map((link) => link.student?.id).filter((id): id is string => Boolean(id)),
     [students],
   );
-
   const load = React.useCallback(() => getGuardianRequests(studentIds), [studentIds]);
 
   const { rows, connection, refresh, error } = useLiveQueue<DismissalQueueRow>({
@@ -79,10 +70,7 @@ export function ParentApp({
   const [cancelling, setCancelling] = React.useState(false);
 
   const active = React.useMemo(
-    () =>
-      rows
-        .filter((row) => isActive(row.status))
-        .sort((a, b) => new Date(b.requested_at).getTime() - new Date(a.requested_at).getTime()),
+    () => rows.filter((row) => isActive(row.status)).sort((a, b) => b.requested_at.localeCompare(a.requested_at)),
     [rows],
   );
 
@@ -90,95 +78,63 @@ export function ParentApp({
     const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date());
     return rows
       .filter((row) => !isActive(row.status) && row.dismissal_date === todayKey)
-      .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+      .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
   }, [rows, timeZone]);
 
-  const activeStudentIds = React.useMemo(
-    () => new Set(active.map((row) => row.student_id)),
-    [active],
-  );
-
-  const pickupReady = active.some((row) => row.status === "ready");
+  const activeStudentIds = React.useMemo(() => new Set(active.map((row) => row.student_id)), [active]);
 
   async function confirmCancel() {
     if (!cancelTarget) return;
-
     setCancelling(true);
     const result = await cancelRequestAction({ requestId: cancelTarget.id });
     setCancelling(false);
-
+    setCancelTarget(null);
     if (!result.ok) {
-      toast.error("Couldn't cancel", result.error);
-      setCancelTarget(null);
+      toast.error(t("board.toast.failed"), result.error);
       return;
     }
-
-    toast.success("Pickup cancelled", "The school has been notified.");
-    setCancelTarget(null);
+    toast.success(t("parent.cancelledToast"), t("parent.cancelledToastBody"));
     void refresh();
   }
 
-  const canArrive = students.some(
-    (link) => link.can_pickup && link.student && !activeStudentIds.has(link.student.id),
-  );
+  const canArrive = students.some((link) => link.can_pickup && link.student && !activeStudentIds.has(link.student.id));
 
   return (
     <div className="flex min-h-dvh flex-col bg-[var(--color-canvas)]">
-      {/* -------------------------------------------------------- app header */}
       <header className="glass sticky top-0 z-30 border-b border-[var(--color-hairline)] px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
         <div className="mx-auto flex w-full max-w-lg items-center gap-3">
           <LogoMark className="size-9" />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[15px] font-bold leading-tight tracking-[-0.02em]">
-              {school?.name ?? BRAND.name}
-            </p>
+            <p className="truncate text-[15px] font-bold leading-tight tracking-[-0.02em]">{school?.name ?? BRAND.name}</p>
             <p className="flex items-center gap-1.5 truncate text-[12px] text-[var(--color-muted)]">
               <LiveDot connected={connection === "live"} />
-              {connection === "live" ? "Live updates on" : "Reconnecting…"}
+              {t(connection === "live" ? "common.live" : "common.reconnecting")}
             </p>
           </div>
-          <Link
-            href="/account"
-            aria-label="Your account"
-            className="rounded-xl p-2 text-[var(--color-muted)] transition hover:bg-black/5 hover:text-[var(--color-ink)] dark:hover:bg-white/10"
-          >
+          <LanguageToggle />
+          <Link href="/account" aria-label={t("common.account")} className="rounded-xl p-2 text-[var(--color-muted)] transition hover:bg-black/5 hover:text-[var(--color-ink)] dark:hover:bg-white/10">
             <CircleUser className="size-6" />
           </Link>
         </div>
       </header>
 
-      <main
-        id="main"
-        className="mx-auto w-full max-w-lg flex-1 px-4 pb-40 pt-5"
-      >
-        <h1 className="text-[26px] font-extrabold leading-tight tracking-[-0.03em]">
-          {greeting(new Date(now), timeZone)},{" "}
-          {guardianName.split(" ")[0] || "there"}
-        </h1>
-        <p className="mt-1 text-[14px] text-[var(--color-muted)]">
-          {active.length > 0
-            ? "We'll keep this updated as your student moves through pickup."
-            : "Tap “I'm Here” when you arrive at the school."}
+      <main id="main" className="mx-auto w-full max-w-lg flex-1 px-4 pb-40 pt-5">
+        <p className="inline-flex items-center gap-1.5 rounded-full bg-gold-100 px-2.5 py-1 text-[11.5px] font-bold uppercase tracking-wide text-gold-800 dark:bg-gold-500/15 dark:text-gold-200">
+          <Smartphone className="size-3.5" />
+          {t("parent.previewBadge")}
         </p>
+
+        <h1 className="mt-3 text-[26px] font-extrabold leading-tight tracking-[-0.03em]">
+          {t(greetingKey(new Date(now), timeZone))}، {guardianName.split(" ")[0]}
+        </h1>
+        <p className="mt-1 text-[14px] text-[var(--color-muted)]">{t(active.length > 0 ? "parent.hintActive" : "parent.hintIdle")}</p>
 
         {error ? <ErrorMessage className="mt-4">{error}</ErrorMessage> : null}
 
-        {/* ------------------------------------------------- active requests */}
         <AnimatePresence initial={false}>
           {active.length > 0 ? (
-            <motion.section
-              key="active"
-              layout
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="mt-6"
-              aria-label="Today's pickups"
-            >
-              <h2 className="mb-2.5 text-[12px] font-bold uppercase tracking-wider text-[var(--color-muted)]">
-                In progress
-              </h2>
-
+            <motion.section key="active" layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-6">
+              <h2 className="mb-2.5 text-[12px] font-bold uppercase tracking-wider text-[var(--color-muted)]">{t("parent.inProgress")}</h2>
               <div className="space-y-3">
                 <AnimatePresence initial={false} mode="popLayout">
                   {active.map((row) => (
@@ -187,8 +143,6 @@ export function ParentApp({
                       row={row}
                       now={now}
                       timeZone={timeZone}
-                      showQueuePosition={school?.show_queue_position ?? true}
-                      showPickupNumber={school?.show_pickup_number ?? true}
                       allowCancel={school?.allow_parent_cancel ?? true}
                       onCancel={() => setCancelTarget(row)}
                     />
@@ -199,50 +153,39 @@ export function ParentApp({
           ) : null}
         </AnimatePresence>
 
-        {/* -------------------------------------------------- your students */}
-        <section className="mt-7" aria-label="Your students">
-          <h2 className="mb-2.5 text-[12px] font-bold uppercase tracking-wider text-[var(--color-muted)]">
-            Your students
-          </h2>
-
+        <section className="mt-7" aria-label={t("parent.yourStudents")}>
+          <h2 className="mb-2.5 text-[12px] font-bold uppercase tracking-wider text-[var(--color-muted)]">{t("parent.yourStudents")}</h2>
           {students.length === 0 ? (
-            <EmptyState
-              icon={ShieldAlert}
-              title="No students linked yet"
-              description="Your school hasn't linked any students to this account. Contact the school office and they'll add them."
-            />
+            <EmptyState icon={ShieldAlert} title={t("parent.noStudents")} description={t("parent.noStudentsHint")} />
           ) : (
             <ul className="space-y-2.5">
               {students.map((link) => {
                 const student = link.student!;
                 const name = `${student.first_name} ${student.last_name}`.trim();
                 const current = active.find((row) => row.student_id === student.id);
-
+                const state = current ? boardState(current) : null;
                 return (
                   <li key={link.id} className="surface-card flex items-center gap-3.5 p-3.5">
                     <Avatar name={name} size="md" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[15.5px] font-bold tracking-[-0.01em]">{name}</p>
                       <p className="truncate text-[13px] text-[var(--color-muted)]">
-                        {[student.grade, student.classroom?.name ? `Class ${student.classroom.name}` : null]
-                          .filter(Boolean)
-                          .join(" — ") || "No class assigned"}
-                        {link.relationship ? ` · ${link.relationship}` : ""}
+                        {student.classroom ? (
+                          <>
+                            <span className="code font-semibold">{student.classroom.name}</span> · {classLabel(student.classroom, locale)}
+                          </>
+                        ) : (
+                          t("students.noClass")
+                        )}
                       </p>
                     </div>
-
-                    {current ? (
-                      <span
-                        className={cn(
-                          "shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-bold uppercase tracking-wide ring-1 ring-inset",
-                          STATUS_META[current.status].soft,
-                        )}
-                      >
-                        {STATUS_META[current.status].parentLabel}
+                    {state === "called" ? (
+                      <span className="shrink-0 rounded-full bg-[var(--color-called)] px-2.5 py-1 text-[11.5px] font-bold uppercase tracking-wide text-[var(--color-called-ink)]">
+                        {t("parent.status.called")}
                       </span>
                     ) : !link.can_pickup ? (
                       <span className="shrink-0 rounded-full bg-black/[0.06] px-2.5 py-1 text-[11.5px] font-semibold text-[var(--color-muted)] dark:bg-white/[0.08]">
-                        Not authorised
+                        {t("parent.notAuthorised")}
                       </span>
                     ) : null}
                   </li>
@@ -252,25 +195,17 @@ export function ParentApp({
           )}
         </section>
 
-        {/* --------------------------------------------------- earlier today */}
         {finishedToday.length > 0 ? (
-          <section className="mt-7" aria-label="Earlier today">
-            <h2 className="mb-2.5 text-[12px] font-bold uppercase tracking-wider text-[var(--color-muted)]">
-              Earlier today
-            </h2>
+          <section className="mt-7" aria-label={t("parent.earlierToday")}>
+            <h2 className="mb-2.5 text-[12px] font-bold uppercase tracking-wider text-[var(--color-muted)]">{t("parent.earlierToday")}</h2>
             <ul className="space-y-2">
               {finishedToday.map((row) => (
-                <li
-                  key={row.id}
-                  className="flex items-center gap-3 rounded-xl bg-[var(--color-surface)] px-3.5 py-3 ring-1 ring-[var(--color-hairline)]"
-                >
+                <li key={row.id} className="flex items-center gap-3 rounded-xl bg-[var(--color-surface)] px-3.5 py-3 ring-1 ring-[var(--color-hairline)]">
                   <CalendarClock className="size-4 shrink-0 text-[var(--color-muted)]" />
-                  <span className="min-w-0 flex-1 truncate text-[14px] font-medium">
-                    {row.student_name}
-                  </span>
-                  <span className="shrink-0 text-[12.5px] text-[var(--color-muted)]">
-                    {STATUS_META[row.status].parentLabel}
-                    {row.picked_up_at ? ` · ${formatTime(row.picked_up_at, timeZone)}` : ""}
+                  <span className="min-w-0 flex-1 truncate text-[14px] font-medium">{row.student_name}</span>
+                  <span className="tabular shrink-0 text-[12.5px] text-[var(--color-muted)]">
+                    {t(`status.${row.status}`)}
+                    {row.picked_up_at ? ` · ${formatTime(row.picked_up_at, timeZone, locale)}` : ""}
                   </span>
                 </li>
               ))}
@@ -278,42 +213,23 @@ export function ParentApp({
           </section>
         ) : null}
 
-        {school?.board_message ? (
-          <p className="mt-7 flex items-start gap-2.5 rounded-2xl bg-brand-50 p-3.5 text-[13px] leading-relaxed text-brand-900 ring-1 ring-brand-600/15 dark:bg-brand-500/10 dark:text-brand-100 dark:ring-brand-400/20">
-            <Info className="mt-0.5 size-4 shrink-0" />
-            {school.board_message}
-          </p>
-        ) : null}
+        <p className="mt-7 flex items-start gap-2.5 rounded-2xl bg-brand-50 p-3.5 text-[13px] leading-relaxed text-brand-900 ring-1 ring-brand-600/15 dark:bg-brand-500/10 dark:text-brand-100 dark:ring-brand-400/20">
+          <Info className="mt-0.5 size-4 shrink-0" />
+          {school?.board_message ?? t("parent.previewNote")}
+        </p>
 
         <InstallHint />
       </main>
 
-      {/* ----------------------------------------------------- sticky action */}
       <div className="glass fixed inset-x-0 bottom-0 z-30 border-t border-[var(--color-hairline)] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
         <div className="mx-auto w-full max-w-lg">
-          {pickupReady ? (
-            <p className="mb-2.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-center text-[13.5px] font-semibold text-white">
-              Your student is at the pickup point
-            </p>
-          ) : null}
-
-          <Button
-            size="xl"
-            className="w-full"
-            onClick={() => setArriveOpen(true)}
-            disabled={!canArrive || students.length === 0}
-          >
+          <Button size="xl" className="w-full" onClick={() => setArriveOpen(true)} disabled={!canArrive || students.length === 0}>
             <Hand className="size-5" />
-            {students.length === 0
-              ? "No students linked"
-              : canArrive
-                ? "I'm Here"
-                : "All students requested"}
+            {students.length === 0 ? t("parent.noneLinked") : canArrive ? t("parent.imHere") : t("parent.allCalled")}
           </Button>
         </div>
       </div>
 
-      {/* ------------------------------------------------------------ modals */}
       <ArriveSheet
         open={arriveOpen}
         onClose={() => setArriveOpen(false)}
@@ -327,23 +243,20 @@ export function ParentApp({
         open={cancelTarget !== null}
         onClose={() => setCancelTarget(null)}
         variant="sheet"
-        title={cancelTarget ? `Cancel pickup for ${cancelTarget.student_name}?` : "Cancel pickup"}
-        description="The school will be told you're no longer waiting."
+        title={cancelTarget ? t("parent.cancelTitle", { name: cancelTarget.student_name }) : ""}
+        description={t("parent.cancelBody")}
         footer={
           <>
             <Button variant="secondary" onClick={() => setCancelTarget(null)} disabled={cancelling}>
-              Keep waiting
+              {t("parent.keepWaiting")}
             </Button>
             <Button variant="danger" onClick={confirmCancel} loading={cancelling}>
-              Cancel pickup
+              {t("parent.cancelCall")}
             </Button>
           </>
         }
       >
-        <p className="pb-2 text-sm text-[var(--color-muted)]">
-          You can tap <span className="font-semibold text-[var(--color-ink)]">I&apos;m Here</span>{" "}
-          again at any time.
-        </p>
+        <p className="pb-2 text-sm text-[var(--color-muted)]">{t("parent.hintIdle")}</p>
       </Modal>
     </div>
   );
@@ -355,21 +268,18 @@ function RequestCard({
   row,
   now,
   timeZone,
-  showQueuePosition,
-  showPickupNumber,
   allowCancel,
   onCancel,
 }: {
   row: DismissalQueueRow;
   now: number;
   timeZone: string;
-  showQueuePosition: boolean;
-  showPickupNumber: boolean;
   allowCancel: boolean;
   onCancel: () => void;
 }) {
-  const meta = STATUS_META[row.status];
-  const cancellable = allowCancel && (row.status === "requested" || row.status === "waiting");
+  const { t, locale } = useI18n();
+  const state = boardState(row);
+  const cancellable = allowCancel && state === "called";
 
   return (
     <motion.article
@@ -378,73 +288,30 @@ function RequestCard({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.98 }}
       transition={{ type: "spring", stiffness: 420, damping: 34 }}
-      className={cn(
-        "surface-card overflow-hidden p-4",
-        row.status === "ready" && "ring-2 ring-emerald-500/40",
-        row.status === "called" && "ring-2 ring-brand-500/40",
-      )}
+      className={cn("surface-card overflow-hidden p-4", state === "called" && "ring-2 ring-[var(--color-called-deep)]")}
     >
       <div className="flex items-start gap-3.5">
         <Avatar name={row.student_name} size="md" />
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <h3 className="truncate text-[16.5px] font-bold tracking-[-0.015em]">
-              {row.student_name}
-            </h3>
-            {showPickupNumber && row.pickup_number ? (
-              <span className="tabular inline-flex items-center gap-0.5 rounded-md bg-black/[0.06] px-1.5 py-0.5 text-[12px] font-bold dark:bg-white/[0.1]">
-                <Hash className="size-3 opacity-60" />
-                {row.pickup_number}
-              </span>
-            ) : null}
-          </div>
+          <h3 className="truncate text-[16.5px] font-bold tracking-[-0.015em]">{row.student_name}</h3>
           <p className="truncate text-[13px] text-[var(--color-muted)]">
-            {[row.student_grade, row.classroom_name ? `Class ${row.classroom_name}` : null]
-              .filter(Boolean)
-              .join(" — ")}
+            <span className="code font-semibold">{row.classroom_name}</span>
           </p>
         </div>
-
-        <span
-          className={cn(
-            "shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-bold uppercase tracking-wide ring-1 ring-inset",
-            meta.soft,
-          )}
-        >
-          {meta.parentLabel}
+        <span className="shrink-0 rounded-full bg-[var(--color-called)] px-2.5 py-1 text-[11.5px] font-bold uppercase tracking-wide text-[var(--color-called-ink)]">
+          {t("parent.status.called")}
         </span>
       </div>
 
-      <p className="mt-3 text-[13.5px] font-medium leading-snug">{meta.parentHint}</p>
+      <p className="mt-3 text-[13.5px] font-medium leading-snug">{t("parent.status.calledHint")}</p>
 
       <div className="mt-3">
         <StatusTracker status={row.status} />
       </div>
 
-      <dl className="tabular mt-3.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] text-[var(--color-muted)]">
-        <div className="flex items-center gap-1.5">
-          <dt className="sr-only">Requested</dt>
-          <dd>Requested {formatTime(row.requested_at, timeZone)} · {timeAgo(row.requested_at, now)}</dd>
-        </div>
-
-        {row.called_at ? (
-          <div className="flex items-center gap-1.5">
-            <dt className="sr-only">Called</dt>
-            <dd className="font-semibold text-brand-700 dark:text-brand-300">
-              Called {formatTime(row.called_at, timeZone)}
-            </dd>
-          </div>
-        ) : null}
-
-        {showQueuePosition && row.queue_position ? (
-          <div className="flex items-center gap-1.5">
-            <dt className="sr-only">Position</dt>
-            <dd className="rounded-md bg-amber-100 px-1.5 py-0.5 font-bold text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
-              {ordinal(row.queue_position)} of {row.queue_length} in line
-            </dd>
-          </div>
-        ) : null}
-      </dl>
+      <p className="tabular mt-3.5 text-[12.5px] text-[var(--color-muted)]">
+        {t("parent.requestedAt", { time: formatTime(row.called_at ?? row.requested_at, timeZone, locale) })} · {timeAgo(row.requested_at, now, locale)}
+      </p>
 
       {row.vehicle_description || row.note ? (
         <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-[var(--color-muted)]">
@@ -464,13 +331,9 @@ function RequestCard({
       ) : null}
 
       {cancellable ? (
-        <button
-          type="button"
-          onClick={onCancel}
-          className="mt-3 inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[13px] font-semibold text-rose-600 transition hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
-        >
+        <button type="button" onClick={onCancel} className="mt-3 inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[13px] font-semibold text-rose-600 transition hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10">
           <X className="size-3.5" />
-          Cancel this pickup
+          {t("parent.cancelThis")}
         </button>
       ) : null}
     </motion.article>

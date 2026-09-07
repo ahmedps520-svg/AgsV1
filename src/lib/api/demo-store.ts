@@ -18,8 +18,8 @@ import type {
  * nothing is ever sent anywhere.
  */
 
-const STORAGE_KEY = "ags-dismissal:demo-v1";
-const SESSION_KEY = "ags-dismissal:demo-session-v1";
+const STORAGE_KEY = "ags-dismissal:demo-v2";
+const SESSION_KEY = "ags-dismissal:demo-session-v2";
 const CHANNEL = "ags-dismissal:demo";
 
 /**
@@ -54,8 +54,11 @@ function load(): DemoSnapshot {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (raw) {
-        snapshot = JSON.parse(raw) as DemoSnapshot;
-        return snapshot;
+        const parsed = JSON.parse(raw) as DemoSnapshot;
+        if (parsed.classrooms?.[0]?.level) {
+          snapshot = parsed;
+          return snapshot;
+        }
       }
     } catch {
       // Corrupt or unavailable storage — fall through to a fresh school.
@@ -239,10 +242,10 @@ export function demoCreateRequest(input: {
     status: input.status,
     source: input.source,
     requested_by: input.requestedBy,
-    called_by: null,
+    called_by: input.status === "called" && input.source === "staff" ? input.requestedBy : null,
     released_by: null,
     requested_at: timestamp,
-    called_at: null,
+    called_at: input.status === "called" ? timestamp : null,
     ready_at: null,
     picked_up_at: null,
     cancelled_at: null,
@@ -283,8 +286,10 @@ export function demoSetStatus(
   const stamp = new Date().toISOString();
 
   row.status = status;
-  row.called_at = status === "waiting" ? null : status === "called" ? stamp : (row.called_at ?? stamp);
-  row.called_by = status === "waiting" ? null : status === "called" ? actorId : (row.called_by ?? actorId);
+  // The original call (who and when) survives a dismissal and an undo.
+  row.called_at = status === "waiting" ? null : (row.called_at ?? stamp);
+  row.called_by =
+    status === "waiting" ? null : row.source === "staff" ? (row.called_by ?? actorId) : row.called_by;
   row.ready_at =
     status === "waiting" || status === "called" ? null : status === "ready" ? stamp : (row.ready_at ?? stamp);
   row.picked_up_at = status === "picked_up" ? stamp : null;

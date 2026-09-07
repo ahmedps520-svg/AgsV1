@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Playfair_Display } from "next/font/google";
+import { IBM_Plex_Sans_Arabic, Inter, Playfair_Display } from "next/font/google";
 import { ToastProvider } from "@/components/ui/toast";
 import { SessionProvider } from "@/lib/api/session";
+import { I18nProvider } from "@/lib/i18n/provider";
 import { ServiceWorker } from "@/components/service-worker";
 import { BRAND } from "@/lib/brand";
 import "./globals.css";
@@ -9,6 +10,14 @@ import "./globals.css";
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
+  display: "swap",
+});
+
+/** Arabic UI face — also the fallback for Arabic glyphs inside English pages. */
+const plexArabic = IBM_Plex_Sans_Arabic({
+  subsets: ["arabic", "latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-plex-arabic",
   display: "swap",
 });
 
@@ -95,7 +104,11 @@ const CSP = [
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${playfair.variable}`} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${inter.variable} ${playfair.variable} ${plexArabic.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <meta httpEquiv="Content-Security-Policy" content={CSP} />
         <meta name="referrer" content="strict-origin-when-cross-origin" />
@@ -117,9 +130,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           Skip to content
         </a>
-        <SessionProvider>
-          <ToastProvider>{children}</ToastProvider>
-        </SessionProvider>
+        <I18nProvider>
+          <SessionProvider>
+            <ToastProvider>{children}</ToastProvider>
+          </SessionProvider>
+        </I18nProvider>
         <ServiceWorker />
       </body>
     </html>

@@ -11,6 +11,7 @@ import type {
   StudentRow,
   UserRole,
 } from "@/lib/types/database";
+import { compareClasses } from "@/lib/classes";
 
 /**
  * Reads for every screen. In `supabase` mode these run through the same Row
@@ -18,8 +19,13 @@ import type {
  * in-browser school. Either way the caller sees identical shapes.
  */
 
+export type ClassroomSummary = Pick<
+  ClassroomRow,
+  "id" | "name" | "grade" | "level" | "gender" | "section" | "room_number"
+>;
+
 export interface StudentWithClassroom extends StudentRow {
-  classroom: Pick<ClassroomRow, "id" | "name" | "grade" | "room_number"> | null;
+  classroom: ClassroomSummary | null;
 }
 
 export interface GuardianStudent {
@@ -53,6 +59,9 @@ function attachClassroom(student: StudentRow): StudentWithClassroom {
           id: classroom.id,
           name: classroom.name,
           grade: classroom.grade,
+          level: classroom.level,
+          gender: classroom.gender,
+          section: classroom.section,
           room_number: classroom.room_number,
         }
       : null,
@@ -111,7 +120,7 @@ export async function getGuardianStudents(profileId: string): Promise<GuardianSt
     .from("guardians")
     .select(
       `id, relationship, is_primary, can_pickup,
-       student:students ( *, classroom:classrooms ( id, name, grade, room_number ) )`,
+       student:students ( *, classroom:classrooms ( id, name, grade, level, gender, section, room_number ) )`,
     )
     .eq("profile_id", profileId)
     .returns<GuardianStudent[]>();
@@ -160,7 +169,7 @@ export async function getStudents(
 
   let query = createClient()
     .from("students")
-    .select(`*, classroom:classrooms ( id, name, grade, room_number )`)
+    .select(`*, classroom:classrooms ( id, name, grade, level, gender, section, room_number )`)
     .eq("school_id", schoolId)
     .order("first_name", { ascending: true })
     .limit(options.limit ?? 500);
@@ -183,15 +192,58 @@ export async function getClassrooms(schoolId: string): Promise<ClassroomRow[]> {
   if (IS_DEMO) {
     return demoState()
       .classrooms.filter((room) => room.school_id === schoolId)
-      .sort((a, b) => a.grade.localeCompare(b.grade) || a.name.localeCompare(b.name));
+      .sort(compareClasses);
+  }
+
+  const { data, error } = await createClient()
+    .from("classrooms")
+    .select("*")
+    .eq("school_id", schoolId);
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).sort(compareClasses);
+}
+
+/** A single class by its code ("7g1"), or null when it isn't set up. */
+export async function getClassroomByCode(
+  schoolId: string,
+  code: string,
+): Promise<ClassroomRow | null> {
+  const wanted = code.trim().toLowerCase();
+
+  if (IS_DEMO) {
+    return (
+      demoState().classrooms.find(
+        (room) => room.school_id === schoolId && room.name.toLowerCase() === wanted,
+      ) ?? null
+    );
   }
 
   const { data, error } = await createClient()
     .from("classrooms")
     .select("*")
     .eq("school_id", schoolId)
-    .order("grade", { ascending: true })
-    .order("name", { ascending: true });
+    .ilike("name", wanted)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  return data ?? null;
+}
+
+/** Every active student in one class, sorted by name. */
+export async function getClassRoster(classroomId: string): Promise<StudentRow[]> {
+  if (IS_DEMO) {
+    return demoState()
+      .students.filter((student) => student.classroom_id === classroomId && student.is_active)
+      .sort((a, b) => a.first_name.localeCompare(b.first_name) || a.last_name.localeCompare(b.last_name));
+  }
+
+  const { data, error } = await createClient()
+    .from("students")
+    .select("*")
+    .eq("classroom_id", classroomId)
+    .eq("is_active", true)
+    .order("first_name", { ascending: true });
 
   if (error) throw new Error(error.message);
   return data ?? [];

@@ -2,24 +2,13 @@
 
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/client";
-import { IS_DEMO } from "@/lib/api/config";
 import { emitDataChanged } from "@/lib/api/events";
-import {
-  demoCallNext,
-  demoCancel,
-  demoCreateRequest,
-  demoCurrentProfile,
-  demoEndSession,
-  demoMutate,
-  demoSetStatus,
-  demoState,
-  demoUuid,
-} from "@/lib/api/demo-store";
 import type {
   ClassGender,
   ClassroomRow,
   DismissalRequestRow,
   DismissalStatus,
+  SectionScope,
   StudentRow,
   UserRole,
 } from "@/lib/types/database";
@@ -29,11 +18,10 @@ import { describeError, fail, ok, type ActionResult } from "@/lib/api/result";
 /**
  * Every write in the app.
  *
- * In `supabase` mode these are thin wrappers over the SECURITY DEFINER
- * functions and RLS-guarded tables — the database owns the rules, so calling
- * them from the browser is exactly as constrained as calling them from a
- * server. In `demo` mode they mutate the in-browser school, re-implementing the
- * same role checks so the demo behaves honestly.
+ * These are thin wrappers over the SECURITY DEFINER functions and RLS-guarded
+ * tables. The database owns the rules — who may call a student, which section
+ * an account can touch — so running them from the browser is exactly as
+ * constrained as running them from a server would be.
  */
 
 const uuid = z.string().uuid("That record could not be found.");
@@ -41,28 +29,6 @@ const uuid = z.string().uuid("That record could not be found.");
 function done<T>(data: T): ActionResult<T> {
   emitDataChanged();
   return ok(data);
-}
-
-function actor() {
-  const profile = demoCurrentProfile();
-  if (!profile) throw new Error("Your session has expired. Please sign in again.");
-  return profile;
-}
-
-function requireDemoStaff() {
-  const profile = actor();
-  if (profile.role !== "admin" && profile.role !== "staff") {
-    throw new Error("Only school staff can manage the dismissal queue.");
-  }
-  return profile;
-}
-
-function requireDemoAdmin() {
-  const profile = actor();
-  if (profile.role !== "admin") {
-    throw new Error("Only school administrators can change this.");
-  }
-  return profile;
 }
 
 /* ------------------------------------------------------- parent: I'm here -- */
@@ -83,30 +49,6 @@ export async function requestDismissalAction(input: {
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Choose at least one student.");
 
   try {
-    if (IS_DEMO) {
-      const profile = actor();
-      const state = demoState();
-
-      const rows = parsed.data.studentIds.map((studentId) => {
-        const link = state.guardians.find(
-          (candidate) => candidate.student_id === studentId && candidate.profile_id === profile.id,
-        );
-        if (!link?.can_pickup) {
-          throw new Error("You are not authorised to pick up this student.");
-        }
-        return demoCreateRequest({
-          studentId,
-          status: "called",
-          source: "parent_app",
-          requestedBy: profile.id,
-          note: parsed.data.note ?? null,
-          vehicle: parsed.data.vehicle ?? profile.vehicle_description ?? null,
-        });
-      });
-
-      return done(rows);
-    }
-
     const { data, error } = await createClient().rpc("request_dismissal", {
       p_student_ids: parsed.data.studentIds,
       p_note: parsed.data.note ?? null,
@@ -127,19 +69,6 @@ export async function addToQueueAction(input: {
   note?: string;
 }): Promise<ActionResult<DismissalRequestRow>> {
   try {
-    if (IS_DEMO) {
-      const profile = requireDemoStaff();
-      return done(
-        demoCreateRequest({
-          studentId: input.studentId,
-          status: "waiting",
-          source: "staff",
-          requestedBy: profile.id,
-          note: input.note ?? null,
-        }),
-      );
-    }
-
     const { data, error } = await createClient().rpc("staff_add_to_queue", {
       p_student_id: input.studentId,
       p_note: input.note ?? null,
@@ -163,11 +92,6 @@ export async function setStatusAction(input: {
   }
 
   try {
-    if (IS_DEMO) {
-      const profile = requireDemoStaff();
-      return done(demoSetStatus(input.requestId, input.status, profile.id));
-    }
-
     const { data, error } = await createClient().rpc("set_request_status", {
       p_request_id: input.requestId,
       p_status: input.status,
@@ -182,11 +106,6 @@ export async function setStatusAction(input: {
 
 export async function callNextAction(): Promise<ActionResult<DismissalRequestRow | null>> {
   try {
-    if (IS_DEMO) {
-      const profile = requireDemoStaff();
-      return done(demoCallNext(demoState().school.id, profile.id));
-    }
-
     const { data, error } = await createClient().rpc("call_next_student");
     if (error) return fail(describeError(error));
     return done((data as DismissalRequestRow | null) ?? null);
@@ -200,24 +119,6 @@ export async function cancelRequestAction(input: {
   reason?: string;
 }): Promise<ActionResult<DismissalRequestRow>> {
   try {
-    if (IS_DEMO) {
-      const profile = actor();
-      const state = demoState();
-      const row = state.requests.find((candidate) => candidate.id === input.requestId);
-      if (!row) return fail("That dismissal request could not be found.");
-
-      if (profile.role === "parent") {
-        if (!state.school.allow_parent_cancel) {
-          return fail("Your school asks that you contact the office to cancel a pickup.");
-        }
-        if (!["requested", "waiting", "called", "ready"].includes(row.status)) {
-          return fail("The teacher has already marked your child as dismissed.");
-        }
-      }
-
-      return done(demoCancel(input.requestId, input.reason));
-    }
-
     const { data, error } = await createClient().rpc("cancel_request", {
       p_request_id: input.requestId,
       p_reason: input.reason ?? null,
@@ -232,11 +133,6 @@ export async function cancelRequestAction(input: {
 
 export async function endSessionAction(): Promise<ActionResult<number>> {
   try {
-    if (IS_DEMO) {
-      requireDemoStaff();
-      return done(demoEndSession(demoState().school.id));
-    }
-
     const { data, error } = await createClient().rpc("end_dismissal_session");
     if (error) return fail(describeError(error));
     return done((data as number | null) ?? 0);
@@ -263,6 +159,7 @@ export async function saveStudentAction(
     first_name,
     last_name: text(formData, "last_name"),
     grade: text(formData, "grade"),
+    gender: (text(formData, "gender") || null) as ClassGender | null,
     classroom_id: classroomId,
     pickup_number: text(formData, "pickup_number") || null,
     notes: text(formData, "notes") || null,
@@ -271,33 +168,6 @@ export async function saveStudentAction(
   const id = text(formData, "id");
 
   try {
-    if (IS_DEMO) {
-      requireDemoAdmin();
-      return done(
-        demoMutate((state) => {
-          const room = state.classrooms.find((candidate) => candidate.id === classroomId);
-          if (room) payload.grade = room.grade;
-          if (id) {
-            const student = state.students.find((candidate) => candidate.id === id);
-            if (!student) throw new Error("That student could not be found.");
-            Object.assign(student, payload, { updated_at: new Date().toISOString() });
-            return student;
-          }
-
-          const student: StudentRow = {
-            id: demoUuid(),
-            school_id: state.school.id,
-            photo_url: null,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            ...payload,
-          };
-          state.students = [...state.students, student];
-          return student;
-        }),
-      );
-    }
-
     const supabase = createClient();
     const { data: profile } = await supabase.auth.getUser();
     const schoolId = await currentSchoolId();
@@ -326,16 +196,6 @@ export async function saveStudentAction(
 
 export async function deleteStudentAction(id: string): Promise<ActionResult<undefined>> {
   try {
-    if (IS_DEMO) {
-      requireDemoAdmin();
-      demoMutate((state) => {
-        state.students = state.students.filter((student) => student.id !== id);
-        state.guardians = state.guardians.filter((link) => link.student_id !== id);
-        state.requests = state.requests.filter((row) => row.student_id !== id);
-      });
-      return done(undefined);
-    }
-
     const { error } = await createClient().from("students").delete().eq("id", id);
     if (error) return fail(describeError(error));
     return done(undefined);
@@ -371,39 +231,6 @@ export async function saveClassroomAction(
   const id = text(formData, "id");
 
   try {
-    if (IS_DEMO) {
-      requireDemoAdmin();
-      return done(
-        demoMutate((state) => {
-          const clash = state.classrooms.find(
-            (room) => room.name.toLowerCase() === name.toLowerCase() && room.id !== id,
-          );
-          if (clash) throw new Error("That class already exists.");
-
-          if (id) {
-            const room = state.classrooms.find((candidate) => candidate.id === id);
-            if (!room) throw new Error("That class could not be found.");
-            Object.assign(room, payload, { updated_at: new Date().toISOString() });
-            // Students carry the display grade, keep it in step.
-            for (const student of state.students) {
-              if (student.classroom_id === room.id) student.grade = payload.grade;
-            }
-            return room;
-          }
-
-          const room: ClassroomRow = {
-            id: demoUuid(),
-            school_id: state.school.id,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            ...payload,
-          };
-          state.classrooms = [...state.classrooms, room];
-          return room;
-        }),
-      );
-    }
-
     const schoolId = await currentSchoolId();
     if (!schoolId) return fail("Your session has expired. Please sign in again.");
 
@@ -428,17 +255,6 @@ export async function saveClassroomAction(
 
 export async function deleteClassroomAction(id: string): Promise<ActionResult<undefined>> {
   try {
-    if (IS_DEMO) {
-      requireDemoAdmin();
-      demoMutate((state) => {
-        state.classrooms = state.classrooms.filter((room) => room.id !== id);
-        state.students = state.students.map((student) =>
-          student.classroom_id === id ? { ...student, classroom_id: null } : student,
-        );
-      });
-      return done(undefined);
-    }
-
     const { error } = await createClient().from("classrooms").delete().eq("id", id);
     if (error) return fail(describeError(error));
     return done(undefined);
@@ -456,33 +272,6 @@ export async function linkGuardianAction(input: {
   isPrimary?: boolean;
 }): Promise<ActionResult<undefined>> {
   try {
-    if (IS_DEMO) {
-      requireDemoAdmin();
-      demoMutate((state) => {
-        const existing = state.guardians.find(
-          (link) => link.student_id === input.studentId && link.profile_id === input.profileId,
-        );
-        if (existing) {
-          existing.relationship = input.relationship || "Guardian";
-          existing.can_pickup = true;
-          return;
-        }
-        state.guardians = [
-          ...state.guardians,
-          {
-            id: demoUuid(),
-            student_id: input.studentId,
-            profile_id: input.profileId,
-            relationship: input.relationship || "Guardian",
-            is_primary: input.isPrimary ?? false,
-            can_pickup: true,
-            created_at: new Date().toISOString(),
-          },
-        ];
-      });
-      return done(undefined);
-    }
-
     const { error } = await createClient().from("guardians").upsert(
       {
         student_id: input.studentId,
@@ -506,15 +295,6 @@ export async function setGuardianPickupAction(input: {
   canPickup: boolean;
 }): Promise<ActionResult<undefined>> {
   try {
-    if (IS_DEMO) {
-      requireDemoAdmin();
-      demoMutate((state) => {
-        const link = state.guardians.find((candidate) => candidate.id === input.guardianId);
-        if (link) link.can_pickup = input.canPickup;
-      });
-      return done(undefined);
-    }
-
     const { error } = await createClient()
       .from("guardians")
       .update({ can_pickup: input.canPickup })
@@ -529,14 +309,6 @@ export async function setGuardianPickupAction(input: {
 
 export async function unlinkGuardianAction(guardianId: string): Promise<ActionResult<undefined>> {
   try {
-    if (IS_DEMO) {
-      requireDemoAdmin();
-      demoMutate((state) => {
-        state.guardians = state.guardians.filter((link) => link.id !== guardianId);
-      });
-      return done(undefined);
-    }
-
     const { error } = await createClient().from("guardians").delete().eq("id", guardianId);
     if (error) return fail(describeError(error));
     return done(undefined);
@@ -554,48 +326,71 @@ export async function createAccountAction(
   const email = text(formData, "email").toLowerCase();
   const full_name = text(formData, "full_name");
   const role = text(formData, "role") as UserRole;
+  const section_scope = (text(formData, "section_scope") || "all") as SectionScope;
 
   if (!full_name) return fail("Enter a full name.");
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fail("Enter a valid email address.");
 
-  if (IS_DEMO) {
-    try {
-      requireDemoAdmin();
-      demoMutate((state) => {
-        state.profiles = [
-          ...state.profiles,
-          {
-            id: demoUuid(),
-            school_id: state.school.id,
-            role,
-            full_name,
-            email,
-            phone: text(formData, "phone") || null,
-            vehicle_description: text(formData, "vehicle_description") || null,
-            avatar_url: null,
-            is_active: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
-        ];
-      });
-      return done({ email, invited: false, password: "demo-account (no password needed)" });
-    } catch (error) {
-      return fail(describeError(error));
-    }
-  }
+  // Creating a login needs the service-role key, which can never ship in a
+  // static bundle. `supabase/functions/create-account` holds it instead and
+  // re-checks that the caller is an administrator of this school.
+  try {
+    const supabase = createClient();
+    const { data, error } = await supabase.functions.invoke("create-account", {
+      body: {
+        email,
+        full_name,
+        role,
+        section_scope,
+        phone: text(formData, "phone") || null,
+        vehicle_description: text(formData, "vehicle_description") || null,
+      },
+    });
 
-  // Creating a login needs the Supabase service-role key, which can never be
-  // shipped in a static bundle — anyone could read it. Account provisioning
-  // therefore happens in the Supabase dashboard. See DEPLOYMENT.md.
-  return fail(
-    "Creating logins requires a server-side key, so it is done from the Supabase dashboard: " +
-      "Authentication → Users → Add user, with user metadata { \"role\": \"" +
-      role +
-      "\", \"full_name\": \"" +
-      full_name +
-      "\", \"school_id\": \"<your school id>\" }. DEPLOYMENT.md has the full steps.",
-  );
+    if (error) {
+      const detail = await readFunctionError(error);
+      return fail(
+        detail ??
+          "Could not reach the account service. Deploy supabase/functions/create-account — see DEPLOYMENT.md.",
+      );
+    }
+
+    const result = data as { password?: string } | null;
+    return done({ email, password: result?.password, invited: false });
+  } catch (error) {
+    return fail(describeError(error));
+  }
+}
+
+/** Edge Function errors carry their message in the response body. */
+async function readFunctionError(error: unknown): Promise<string | null> {
+  const context = (error as { context?: { json?: () => Promise<unknown> } }).context;
+  if (!context?.json) return (error as Error)?.message ?? null;
+  try {
+    const body = (await context.json()) as { error?: string };
+    return body?.error ?? null;
+  } catch {
+    return (error as Error)?.message ?? null;
+  }
+}
+
+/* ------------------------------------------------------- end of the year -- */
+
+/**
+ * Moves the whole school up one grade. Grade 12 leaves and is deleted, along
+ * with its dismissal history — that is what AGS asked for, and it cannot be
+ * undone.
+ */
+export async function promoteAllStudentsAction(): Promise<
+  ActionResult<{ promoted: number; graduated: number; skipped: number }>
+> {
+  try {
+    const { data, error } = await createClient().rpc("promote_all_students");
+    if (error) return fail(describeError(error));
+    return done(data as { promoted: number; graduated: number; skipped: number });
+  } catch (error) {
+    return fail(describeError(error));
+  }
 }
 
 export async function updatePersonAction(
@@ -609,24 +404,13 @@ export async function updatePersonAction(
   const payload = {
     full_name,
     role: text(formData, "role") as UserRole,
+    section_scope: (text(formData, "section_scope") || "all") as SectionScope,
     phone: text(formData, "phone") || null,
     vehicle_description: text(formData, "vehicle_description") || null,
     is_active: formData.get("is_active") !== "false",
   };
 
   try {
-    if (IS_DEMO) {
-      const admin = requireDemoAdmin();
-      if (id === admin.id && payload.role !== "admin") {
-        return fail("You cannot remove your own administrator access.");
-      }
-      demoMutate((state) => {
-        const person = state.profiles.find((candidate) => candidate.id === id);
-        if (person) Object.assign(person, payload, { updated_at: new Date().toISOString() });
-      });
-      return done(undefined);
-    }
-
     const { error } = await createClient().from("profiles").update(payload).eq("id", id);
     if (error) return fail(describeError(error));
     return done(undefined);
@@ -663,14 +447,6 @@ export async function updateSchoolAction(
   };
 
   try {
-    if (IS_DEMO) {
-      requireDemoAdmin();
-      demoMutate((state) => {
-        Object.assign(state.school, payload, { updated_at: new Date().toISOString() });
-      });
-      return done(undefined);
-    }
-
     const schoolId = await currentSchoolId();
     if (!schoolId) return fail("Your session has expired. Please sign in again.");
 
@@ -696,15 +472,6 @@ export async function updateOwnProfileAction(
   };
 
   try {
-    if (IS_DEMO) {
-      const profile = actor();
-      demoMutate((state) => {
-        const person = state.profiles.find((candidate) => candidate.id === profile.id);
-        if (person) Object.assign(person, payload, { updated_at: new Date().toISOString() });
-      });
-      return done(undefined);
-    }
-
     const supabase = createClient();
     const {
       data: { user },
@@ -731,8 +498,6 @@ export async function updatePasswordAction(
   if (password.length < 8) return fail("Choose a password of at least 8 characters.");
   if (password !== confirm) return fail("The two passwords don't match.");
 
-  if (IS_DEMO) return fail("Passwords aren't used in the demo — pick any account to explore.");
-
   const { error } = await createClient().auth.updateUser({ password });
   if (error) return fail(describeError(error));
   return ok(undefined);
@@ -744,8 +509,6 @@ export async function sendPasswordResetAction(
 ): Promise<ActionResult<{ sent: true }>> {
   const email = text(formData, "email");
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fail("Enter a valid email address.");
-
-  if (IS_DEMO) return ok({ sent: true });
 
   const redirectTo = `${window.location.origin}${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/auth/callback`;
   const { error } = await createClient().auth.resetPasswordForEmail(email, { redirectTo });
@@ -777,18 +540,6 @@ export async function callStudentManuallyAction(
   studentId: string,
 ): Promise<ActionResult<DismissalRequestRow>> {
   try {
-    if (IS_DEMO) {
-      const profile = requireDemoStaff();
-      const row = demoCreateRequest({
-        studentId,
-        status: "called",
-        source: "staff",
-        requestedBy: profile.id,
-      });
-      if (row.status !== "called") demoSetStatus(row.id, "called", profile.id);
-      return done(row);
-    }
-
     const { data, error } = await createClient().rpc("staff_call_student", {
       p_student_id: studentId,
     });

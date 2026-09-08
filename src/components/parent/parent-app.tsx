@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CalendarClock, Car, CircleUser, Hand, Info, MessageSquareText, ShieldAlert, Smartphone, X } from "lucide-react";
+import { CalendarClock, Car, CircleUser, Hand, Info, MessageSquareText, ShieldAlert, X } from "lucide-react";
 import Link from "next/link";
 import { Avatar, EmptyState, ErrorMessage, LiveDot } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/button";
@@ -83,6 +83,12 @@ export function ParentApp({
 
   const activeStudentIds = React.useMemo(() => new Set(active.map((row) => row.student_id)), [active]);
 
+  // Children with no call in flight — the only ones the roster below needs.
+  const waiting = React.useMemo(
+    () => students.filter((link) => link.student && !activeStudentIds.has(link.student.id)),
+    [students, activeStudentIds],
+  );
+
   async function confirmCancel() {
     if (!cancelTarget) return;
     setCancelling(true);
@@ -119,13 +125,10 @@ export function ParentApp({
       </header>
 
       <main id="main" className="mx-auto w-full max-w-lg flex-1 px-4 pb-40 pt-5">
-        <p className="inline-flex items-center gap-1.5 rounded-full bg-gold-100 px-2.5 py-1 text-[11.5px] font-bold uppercase tracking-wide text-gold-800 dark:bg-gold-500/15 dark:text-gold-200">
-          <Smartphone className="size-3.5" />
-          {t("parent.previewBadge")}
-        </p>
-
-        <h1 className="mt-3 text-[26px] font-extrabold leading-tight tracking-[-0.03em]">
-          {t(greetingKey(new Date(now), timeZone))}، {guardianName.split(" ")[0]}
+        <h1 className=" text-[26px] font-extrabold leading-tight tracking-[-0.03em]">
+          {t(greetingKey(new Date(now), timeZone))}
+          {locale === "ar" ? "، " : ", "}
+          {guardianName.split(" ")[0]}
         </h1>
         <p className="mt-1 text-[14px] text-[var(--color-muted)]">{t(active.length > 0 ? "parent.hintActive" : "parent.hintIdle")}</p>
 
@@ -153,17 +156,18 @@ export function ParentApp({
           ) : null}
         </AnimatePresence>
 
+        {/* A child with a live call already has a card above; listing them
+            again here just doubles the page. */}
+        {students.length === 0 || waiting.length > 0 ? (
         <section className="mt-7" aria-label={t("parent.yourStudents")}>
           <h2 className="mb-2.5 text-[12px] font-bold uppercase tracking-wider text-[var(--color-muted)]">{t("parent.yourStudents")}</h2>
           {students.length === 0 ? (
             <EmptyState icon={ShieldAlert} title={t("parent.noStudents")} description={t("parent.noStudentsHint")} />
           ) : (
             <ul className="space-y-2.5">
-              {students.map((link) => {
+              {waiting.map((link) => {
                 const student = link.student!;
                 const name = `${student.first_name} ${student.last_name}`.trim();
-                const current = active.find((row) => row.student_id === student.id);
-                const state = current ? boardState(current) : null;
                 return (
                   <li key={link.id} className="surface-card flex items-center gap-3.5 p-3.5">
                     <Avatar name={name} size="md" />
@@ -179,11 +183,7 @@ export function ParentApp({
                         )}
                       </p>
                     </div>
-                    {state === "called" ? (
-                      <span className="shrink-0 rounded-full bg-[var(--color-called)] px-2.5 py-1 text-[11.5px] font-bold uppercase tracking-wide text-[var(--color-called-ink)]">
-                        {t("parent.status.called")}
-                      </span>
-                    ) : !link.can_pickup ? (
+                    {!link.can_pickup ? (
                       <span className="shrink-0 rounded-full bg-black/[0.06] px-2.5 py-1 text-[11.5px] font-semibold text-[var(--color-muted)] dark:bg-white/[0.08]">
                         {t("parent.notAuthorised")}
                       </span>
@@ -194,6 +194,7 @@ export function ParentApp({
             </ul>
           )}
         </section>
+        ) : null}
 
         {finishedToday.length > 0 ? (
           <section className="mt-7" aria-label={t("parent.earlierToday")}>
@@ -215,7 +216,7 @@ export function ParentApp({
 
         <p className="mt-7 flex items-start gap-2.5 rounded-2xl bg-brand-50 p-3.5 text-[13px] leading-relaxed text-brand-900 ring-1 ring-brand-600/15 dark:bg-brand-500/10 dark:text-brand-100 dark:ring-brand-400/20">
           <Info className="mt-0.5 size-4 shrink-0" />
-          {school?.board_message ?? t("parent.previewNote")}
+          {school?.board_message ?? t("parent.hintIdle")}
         </p>
 
         <InstallHint />

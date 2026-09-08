@@ -3,8 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
-import { IS_DEMO } from "@/lib/api/config";
-import { subscribeDemo } from "@/lib/api/demo-store";
 
 export type ConnectionState = "connecting" | "live" | "offline";
 
@@ -44,9 +42,7 @@ export function useLiveQueue<T>({
   pollMs = 30_000,
 }: Options<T>): Result<T> {
   const [rows, setRows] = useState<T[]>(initial);
-  // The demo store is always "connected" — there is no socket to lose.
-  const [socketState, setConnection] = useState<ConnectionState>("connecting");
-  const connection: ConnectionState = IS_DEMO ? "live" : socketState;
+  const [connection, setConnection] = useState<ConnectionState>("connecting");
   const [error, setError] = useState<string | null>(null);
 
   // A fresh server render (navigation, revalidatePath) wins over local state.
@@ -97,20 +93,6 @@ export function useLiveQueue<T>({
 
   useEffect(() => {
     mounted.current = true;
-
-    // Demo mode: the in-browser store broadcasts across tabs, so the same
-    // "call a student, watch the board move" behaviour holds without a server.
-    if (IS_DEMO) {
-      // Deferred a tick so the first load lands after this effect commits
-      // rather than cascading a render inside it.
-      queueMicrotask(() => void refresh());
-      const unsubscribe = subscribeDemo(() => scheduleRefresh());
-      return () => {
-        mounted.current = false;
-        unsubscribe();
-        if (pending.current !== null) window.clearTimeout(pending.current);
-      };
-    }
 
     const supabase = createClient();
 

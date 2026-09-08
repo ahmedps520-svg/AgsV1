@@ -31,6 +31,11 @@ end $$;
 \set parent  '22222222-2222-4222-8222-222222222224'
 \set driver  '22222222-2222-4222-8222-222222222225'
 
+-- `:teacher` is the shared boys' dismissal login. Groups 1-21 exercise the
+-- state machine rather than section scoping, so give it the whole school for
+-- now; group 22 puts it back to 'boys' and proves the confinement.
+update public.profiles set section_scope = 'all' where id = :'teacher'::uuid;
+
 \echo '--- 1. Parent taps "I am Here" for two children ---'
 select public.act_as(:'parent');
 set role authenticated;
@@ -359,6 +364,129 @@ exception
   when insufficient_privilege then
     raise notice '  ok: cross-school queue add is rejected';
 end $$;
+reset role;
+
+\echo '--- 22. A shared section account is confined to its own section ---'
+reset role;
+-- Back to what the school actually deploys: one shared login per section.
+update public.profiles set section_scope = 'boys' where id = :'teacher'::uuid;
+
+select public.act_as(:'teacher');
+set role authenticated;
+
+select public.assert(count(*) > 0, 'the boys account reads boys classes')
+from public.classrooms where gender = 'boys';
+select public.assert(count(*) = 0, 'the boys account cannot read a girls class')
+from public.classrooms where gender = 'girls';
+select public.assert(count(*) = 0, 'nor a mixed kindergarten class')
+from public.classrooms where gender = 'mixed';
+
+select public.assert(count(*) = 0, 'the boys account cannot read a girls student')
+from public.students where first_name in ('Noura', 'Hessa');
+select public.assert(count(*) > 0, 'but reads boys students')
+from public.students where first_name = 'Ahmed';
+
+do $$
+begin
+  perform public.staff_call_student(
+    (select id from public.students where first_name = 'Noura' limit 1));
+  raise exception 'ASSERTION FAILED: the boys account called a girls student';
+exception
+  when insufficient_privilege then
+    raise notice '  ok: the boys account cannot call a girls student';
+  when others then
+    -- RLS hides the row entirely, which is an even tighter failure.
+    raise notice '  ok: the boys account cannot call a girls student (%)', sqlerrm;
+end $$;
+
+select public.assert(status = 'called', 'and can call a boys student on its own board')
+from public.staff_call_student((select id from public.students where first_name = 'Ahmed'));
+
+\echo '--- 23. Girls calls stay invisible to the boys account ---'
+reset role;
+select public.act_as(:'admin');
+set role authenticated;
+select public.staff_call_student((select id from public.students where first_name = 'Noura'));
+
+reset role;
+select public.act_as(:'teacher');
+set role authenticated;
+select public.assert(count(*) = 0, 'a girls call never reaches the boys board')
+from public.dismissal_queue where student_name like 'Noura%';
+select public.assert(count(*) > 0, 'while its own boys calls are visible')
+from public.dismissal_queue where student_name like 'Ahmed%';
+
+\echo '--- 24. End-of-year promotion ---'
+reset role;
+select public.act_as(:'admin');
+set role authenticated;
+
+-- A leaver to prove Grade 12 is removed, and a KG student to prove the mixed
+-- kindergarten splits correctly into a gendered Grade 1 class.
+insert into public.classrooms (school_id, name, grade, level, gender, section)
+values ('11111111-1111-4111-8111-111111111111', '12b1', 'Grade 12', '12', 'boys', '1');
+insert into public.students (school_id, first_name, last_name, grade, gender, classroom_id)
+values ('11111111-1111-4111-8111-111111111111', 'Faris', 'AlLeaver', 'Grade 12', 'boys',
+        (select id from public.classrooms where name = '12b1'));
+update public.students set gender = 'girls'
+ where first_name = 'Sara' and last_name = 'AlShammari';
+
+-- A KG3 girl: leaving kindergarten is the only move that needs the student's
+-- own gender, because Grade 1 is split and KG is not.
+insert into public.classrooms (school_id, name, grade, level, gender, section)
+values ('11111111-1111-4111-8111-111111111111', 'KG3-B', 'KG 3', 'KG3', 'mixed', 'B');
+insert into public.students (school_id, first_name, last_name, grade, gender, classroom_id)
+values ('11111111-1111-4111-8111-111111111111', 'Jana', 'AlKindy', 'KG 3', 'girls',
+        (select id from public.classrooms where name = 'KG3-B'));
+-- And one with no gender recorded, which cannot be placed.
+insert into public.students (school_id, first_name, last_name, grade, gender, classroom_id)
+values ('11111111-1111-4111-8111-111111111111', 'Unknown', 'AlNogender', 'KG 3', null,
+        (select id from public.classrooms where name = 'KG3-B'));
+
+do $$
+declare v_result jsonb;
+begin
+  v_result := public.promote_all_students();
+  raise notice '  promotion: %', v_result;
+  if (v_result ->> 'graduated')::int < 1 then
+    raise exception 'ASSERTION FAILED: Grade 12 was not removed';
+  end if;
+  if (v_result ->> 'promoted')::int < 5 then
+    raise exception 'ASSERTION FAILED: too few students promoted';
+  end if;
+  if (v_result ->> 'skipped')::int <> 1 then
+    raise exception 'ASSERTION FAILED: expected exactly one unplaceable student, got %',
+      v_result ->> 'skipped';
+  end if;
+end $$;
+
+select public.assert(count(*) = 0, 'the Grade 12 leaver is gone')
+from public.students where last_name = 'AlLeaver';
+
+select public.assert(
+  (select c.name from public.students s join public.classrooms c on c.id = s.classroom_id
+    where s.first_name = 'Ahmed' and s.last_name = 'AlShehri') = '8b1',
+  'Ahmed moved from 7b1 to 8b1');
+
+select public.assert(
+  (select c.level from public.students s join public.classrooms c on c.id = s.classroom_id
+    where s.first_name = 'Sara' and s.last_name = 'AlShammari') = 'KG2',
+  'the KG1 girl moved up to KG2');
+
+select public.assert(
+  (select c.level from public.students s join public.classrooms c on c.id = s.classroom_id
+    where s.first_name = 'Maryam') = 'KG3',
+  'a KG2 student moves up inside kindergarten, no gender needed');
+
+select public.assert(
+  (select c.name from public.students s join public.classrooms c on c.id = s.classroom_id
+    where s.first_name = 'Jana') = '1g2',
+  'the KG3 girl lands in Grade 1 girls, section B mapped to 2');
+
+select public.assert(
+  (select c.level from public.students s join public.classrooms c on c.id = s.classroom_id
+    where s.first_name = 'Unknown') = 'KG3',
+  'the student with no recorded gender stays put rather than being misplaced');
 reset role;
 
 \echo ''

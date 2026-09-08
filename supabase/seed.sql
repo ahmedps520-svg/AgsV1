@@ -1,25 +1,29 @@
 -- ===========================================================================
--- AGS Dismissal — demo seed
+-- AGS Dismissal — local development seed
 -- ---------------------------------------------------------------------------
--- Loaded automatically by `supabase db reset` for LOCAL development.
+-- Loaded automatically by `supabase db reset` for LOCAL development, so the
+-- app has a school, some classes and a handful of students to work against.
 -- It creates sign-in accounts with well-known passwords: never run it against
--- a production project.
+-- the live project. The real project is bootstrapped with `supabase/setup.sql`
+-- and staff logins are created from the admin screen.
 --
---   admin@ags.demo    / Dismissal123!   (administrator)
---   teacher@ags.demo  / Dismissal123!   (staff)
---   board@ags.demo    / Dismissal123!   (TV display, read only)
---   parent@ags.demo   / Dismissal123!   (parent of Ahmed + Salman)
---   driver@ags.demo   / Dismissal123!   (authorised driver)
+--   admin@ags.edu.sa           / Dismissal123!   administrator, all sections
+--   dismissal.boys@ags.edu.sa  / dismissal@ags$  teacher, boys classes
+--   dismissal.girls@ags.edu.sa / dismissal@ags$  teacher, girls classes
+--   dismissal.kg@ags.edu.sa    / dismissal@ags$  teacher, kindergarten
+--   parent@ags.edu.sa          / Dismissal123!   parent of Ahmed, Salman, Noura
+--   driver@ags.edu.sa          / Dismissal123!   authorised driver
 -- ===========================================================================
 
 do $$
 declare
   v_school   uuid := '11111111-1111-4111-8111-111111111111';
   v_admin    uuid := '22222222-2222-4222-8222-222222222221';
-  v_teacher  uuid := '22222222-2222-4222-8222-222222222222';
+  v_boys     uuid := '22222222-2222-4222-8222-222222222222';
+  v_girls    uuid := '22222222-2222-4222-8222-222222222223';
+  v_kg       uuid := '22222222-2222-4222-8222-222222222226';
   v_parent   uuid := '22222222-2222-4222-8222-222222222224';
   v_driver   uuid := '22222222-2222-4222-8222-222222222225';
-  v_password text := 'Dismissal123!';
 
   v_user     record;
   v_room     record;
@@ -43,13 +47,17 @@ begin
   on conflict (id) do nothing;
 
   -- ----------------------------------------------------------------- users --
+  -- One shared login per section is deliberate: every teacher in the boys
+  -- building signs in with the same account and picks their own class.
   for v_user in
     select * from (values
-      (v_admin,   'admin@ags.demo',   'Layla Haddad',    'admin'),
-      (v_teacher, 'teacher@ags.demo', 'Omar Nasser',     'staff'),
-      (v_parent,  'parent@ags.demo',  'Fatima AlShehri', 'parent'),
-      (v_driver,  'driver@ags.demo',  'Yousef Karim',    'parent')
-    ) as t(id, email, full_name, role)
+      (v_admin,  'admin@ags.edu.sa',           'Dismissal123!',  'School Administrator', 'admin', 'all'),
+      (v_boys,   'dismissal.boys@ags.edu.sa',  'dismissal@ags$', 'Boys Dismissal',       'staff', 'boys'),
+      (v_girls,  'dismissal.girls@ags.edu.sa', 'dismissal@ags$', 'Girls Dismissal',      'staff', 'girls'),
+      (v_kg,     'dismissal.kg@ags.edu.sa',    'dismissal@ags$', 'Kindergarten',         'staff', 'mixed'),
+      (v_parent, 'parent@ags.edu.sa',          'Dismissal123!',  'Fatima AlShehri',      'parent', 'all'),
+      (v_driver, 'driver@ags.edu.sa',          'Dismissal123!',  'Yousef Karim',         'parent', 'all')
+    ) as t(id, email, password, full_name, role, scope)
   loop
     insert into auth.users (
       instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -62,10 +70,15 @@ begin
       'authenticated',
       'authenticated',
       v_user.email,
-      extensions.crypt(v_password, extensions.gen_salt('bf')),
+      extensions.crypt(v_user.password, extensions.gen_salt('bf')),
       now(),
       '{"provider":"email","providers":["email"]}'::jsonb,
-      jsonb_build_object('full_name', v_user.full_name, 'role', v_user.role, 'school_id', v_school::text),
+      jsonb_build_object(
+        'full_name', v_user.full_name,
+        'role', v_user.role,
+        'school_id', v_school::text,
+        'section_scope', v_user.scope
+      ),
       now(), now(), '', '', '', ''
     )
     on conflict (id) do nothing;
@@ -84,12 +97,13 @@ begin
     on conflict do nothing;
 
     -- The on_auth_user_created trigger builds the profile; make sure the
-    -- school + role are correct even if the row already existed.
+    -- school, role and section are correct even if the row already existed.
     update public.profiles
-       set school_id = v_school,
-           role      = v_user.role::public.user_role,
-           full_name = v_user.full_name,
-           email     = v_user.email
+       set school_id     = v_school,
+           role          = v_user.role::public.user_role,
+           full_name     = v_user.full_name,
+           email         = v_user.email,
+           section_scope = v_user.scope::public.section_scope
      where id = v_user.id;
   end loop;
 
@@ -100,25 +114,24 @@ begin
   -- AGS codes: KG lettered and mixed; grades split into boys (b) / girls (g).
   for v_room in
     select * from (values
-      ('KG1-A', 'KG1', 'mixed', 'A', null::uuid),
-      ('KG2-A', 'KG2', 'mixed', 'A', null::uuid),
-      ('1b1',   '1',   'boys',  '1', null::uuid),
-      ('3b1',   '3',   'boys',  '1', null::uuid),
-      ('5g1',   '5',   'girls', '1', null::uuid),
-      ('7b1',   '7',   'boys',  '1', v_teacher),
-      ('7g1',   '7',   'girls', '1', null::uuid),
-      ('8b1',   '8',   'boys',  '1', null::uuid)
-    ) as t(name, level, gender, section, teacher_id)
+      ('KG1-A', 'KG1', 'mixed', 'A'),
+      ('KG2-A', 'KG2', 'mixed', 'A'),
+      ('1b1',   '1',   'boys',  '1'),
+      ('3b1',   '3',   'boys',  '1'),
+      ('5g1',   '5',   'girls', '1'),
+      ('7b1',   '7',   'boys',  '1'),
+      ('7g1',   '7',   'girls', '1'),
+      ('8b1',   '8',   'boys',  '1')
+    ) as t(name, level, gender, section)
   loop
-    insert into public.classrooms (school_id, name, grade, level, gender, section, teacher_id)
+    insert into public.classrooms (school_id, name, grade, level, gender, section)
     values (
       v_school,
       v_room.name,
       case when v_room.level like 'KG%' then 'KG ' || right(v_room.level, 1) else 'Grade ' || v_room.level end,
       v_room.level,
       v_room.gender::public.class_gender,
-      v_room.section,
-      v_room.teacher_id
+      v_room.section
     )
     on conflict (school_id, name) do nothing;
   end loop;
@@ -129,20 +142,20 @@ begin
   -- -------------------------------------------------------------- students --
   for v_student in
     select * from (values
-      ('Ahmed',   'AlShehri',  'Grade 7', '7b1',   null),
-      ('Salman',  'AlShehri',  'Grade 3', '3b1',   null),
-      ('Noura',   'AlShehri',  'Grade 5', '5g1',   null),
-      ('Faisal',  'AlQahtani', 'Grade 7', '7b1',   null),
-      ('Turki',   'AlGhamdi',  'Grade 7', '7b1',   null),
-      ('Reem',    'AlOtaibi',  'Grade 7', '7g1',   null),
-      ('Lama',    'AlHarbi',   'Grade 7', '7g1',   null),
-      ('Zayd',    'AlDosari',  'Grade 3', '3b1',   null),
-      ('Maryam',  'AlMutairi', 'KG 2',    'KG2-A', null),
-      ('Bandar',  'AlZahrani', 'Grade 8', '8b1',   null),
-      ('Hessa',   'AlSubaie',  'Grade 5', '5g1',   null),
-      ('Nawaf',   'AlAmri',    'Grade 1', '1b1',   null),
-      ('Sara',    'AlShammari','KG 1',    'KG1-A', null)
-    ) as t(first_name, last_name, grade, room, pickup_number)
+      ('Ahmed',   'AlShehri',  '7b1',   'boys'),
+      ('Salman',  'AlShehri',  '3b1',   'boys'),
+      ('Noura',   'AlShehri',  '5g1',   'girls'),
+      ('Faisal',  'AlQahtani', '7b1',   'boys'),
+      ('Turki',   'AlGhamdi',  '7b1',   'boys'),
+      ('Reem',    'AlOtaibi',  '7g1',   'girls'),
+      ('Lama',    'AlHarbi',   '7g1',   'girls'),
+      ('Zayd',    'AlDosari',  '3b1',   'boys'),
+      ('Maryam',  'AlMutairi', 'KG2-A', 'girls'),
+      ('Bandar',  'AlZahrani', '8b1',   'boys'),
+      ('Hessa',   'AlSubaie',  '5g1',   'girls'),
+      ('Nawaf',   'AlAmri',    '1b1',   'boys'),
+      ('Sara',    'AlShammari','KG1-A', 'girls')
+    ) as t(first_name, last_name, room, gender)
   loop
     if not exists (
       select 1 from public.students
@@ -150,14 +163,14 @@ begin
         and first_name = v_student.first_name
         and last_name = v_student.last_name
     ) then
-      insert into public.students (school_id, first_name, last_name, grade, classroom_id, pickup_number)
+      insert into public.students (school_id, first_name, last_name, grade, classroom_id, gender)
       values (
         v_school,
         v_student.first_name,
         v_student.last_name,
-        v_student.grade,
+        (select grade from public.classrooms where id = (v_rooms ->> v_student.room)::uuid),
         (v_rooms ->> v_student.room)::uuid,
-        v_student.pickup_number
+        v_student.gender::public.class_gender
       );
     end if;
   end loop;

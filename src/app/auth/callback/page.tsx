@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { IS_DEMO } from "@/lib/api/config";
 import { BootScreen } from "@/components/boot-screen";
 import { ErrorMessage } from "@/components/ui/primitives";
 
@@ -26,11 +25,6 @@ function Callback() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (IS_DEMO) {
-      router.replace("/login");
-      return;
-    }
-
     const code = params.get("code");
     const supabase = createClient();
 

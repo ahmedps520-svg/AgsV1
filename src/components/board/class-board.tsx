@@ -9,6 +9,7 @@ import {
   Maximize2,
   Megaphone,
   Minimize2,
+  Search,
   Undo2,
   Volume2,
   VolumeX,
@@ -31,10 +32,13 @@ import { LanguageToggle } from "@/components/language-toggle";
 import { BoardClock } from "@/components/board/board-clock";
 import { playChime, unlockAudio } from "@/components/board/chime";
 import { useToast } from "@/components/ui/toast";
-import { LiveDot } from "@/components/ui/primitives";
+import { Modal } from "@/components/ui/modal";
+import { Input } from "@/components/ui/field";
+import { Avatar, LiveDot } from "@/components/ui/primitives";
 import { rememberClass } from "@/components/board/class-picker";
 import { BackLink } from "@/components/layout/back-link";
 import type { DismissalQueueRow, StudentRow } from "@/lib/types/database";
+import type { MessageKey } from "@/lib/i18n/dictionary";
 
 const NO_ROWS: DismissalQueueRow[] = [];
 
@@ -82,8 +86,14 @@ export function ClassBoard({ session, code }: { session: Session; code: string }
 
   /* ------------------------------------------------------------- compose */
 
-  const tiles = React.useMemo<Tile[]>(() => {
-    if (!roster) return [];
+  /**
+   * The board only ever shows students something has happened to: called
+   * (yellow) and gone (grey). Everyone still sitting in class is deliberately
+   * absent — the teacher does not need to read 30 names to find the two that
+   * matter.
+   */
+  const { called, dismissed, stillInClass } = React.useMemo(() => {
+    if (!roster) return { called: [] as Tile[], dismissed: [] as Tile[], stillInClass: 0 };
 
     const latest = new Map<string, DismissalQueueRow>();
     for (const row of rows) {
@@ -92,35 +102,37 @@ export function ClassBoard({ session, code }: { session: Session; code: string }
       if (!previous || row.requested_at > previous.requested_at) latest.set(row.student_id, row);
     }
 
-    const rank: Record<BoardState, number> = { called: 0, present: 1, dismissed: 2 };
+    const tiles: Tile[] = roster.map((student) => {
+      const request = latest.get(student.id) ?? null;
+      return { student, request, state: boardState(request) };
+    });
 
-    return roster
-      .map((student) => {
-        const request = latest.get(student.id) ?? null;
-        return { student, request, state: boardState(request) };
-      })
-      .sort((a, b) => {
-        if (a.state !== b.state) return rank[a.state] - rank[b.state];
-        if (a.state === "called") {
-          return (a.request?.called_at ?? "").localeCompare(b.request?.called_at ?? "");
-        }
-        if (a.state === "dismissed") {
-          return (b.request?.picked_up_at ?? "").localeCompare(a.request?.picked_up_at ?? "");
-        }
-        return (
-          a.student.first_name.localeCompare(b.student.first_name) ||
-          a.student.last_name.localeCompare(b.student.last_name)
-        );
-      });
+    return {
+      // Longest-waiting first: the teacher works top-left to bottom-right.
+      called: tiles
+        .filter((tile) => tile.state === "called")
+        .sort((a, b) => (a.request?.called_at ?? "").localeCompare(b.request?.called_at ?? "")),
+      // Most recently gone first, so the last action stays in view.
+      dismissed: tiles
+        .filter((tile) => tile.state === "dismissed")
+        .sort((a, b) => (b.request?.picked_up_at ?? "").localeCompare(a.request?.picked_up_at ?? "")),
+      stillInClass: tiles.filter((tile) => tile.state === "present").length,
+    };
   }, [roster, rows]);
 
-  const counts = React.useMemo(
-    () => ({
-      called: tiles.filter((tile) => tile.state === "called").length,
-      present: tiles.filter((tile) => tile.state === "present").length,
-      dismissed: tiles.filter((tile) => tile.state === "dismissed").length,
-    }),
-    [tiles],
+  // A board with two names on it should read from the back of the room; a
+  // board with twenty has to pack them in. Size the tiles to the occupancy.
+  const onBoard = called.length + dismissed.length;
+  const minTile = onBoard <= 2 ? 460 : onBoard <= 6 ? 340 : onBoard <= 12 ? 280 : 230;
+
+  const uncalled = React.useMemo(
+    () =>
+      (roster ?? []).filter(
+        (student) =>
+          !called.some((tile) => tile.student.id === student.id) &&
+          !dismissed.some((tile) => tile.student.id === student.id),
+      ),
+    [roster, called, dismissed],
   );
 
   /* --------------------------------------------------------------- chime */
@@ -129,7 +141,7 @@ export function ClassBoard({ session, code }: { session: Session; code: string }
   const knownCalled = React.useRef<Set<string> | null>(null);
 
   React.useEffect(() => {
-    const current = new Set(tiles.filter((tile) => tile.state === "called").map((tile) => tile.student.id));
+    const current = new Set(called.map((tile) => tile.student.id));
     if (knownCalled.current === null) {
       knownCalled.current = current;
       return;
@@ -140,7 +152,7 @@ export function ClassBoard({ session, code }: { session: Session; code: string }
     });
     knownCalled.current = current;
     if (fresh && soundOn) playChime();
-  }, [tiles, soundOn]);
+  }, [called, soundOn]);
 
   /* ---------------------------------------------------------- fullscreen */
 
@@ -187,6 +199,7 @@ export function ClassBoard({ session, code }: { session: Session; code: string }
   /* ------------------------------------------------------------- actions */
 
   const [pending, setPending] = React.useState<Set<string>>(new Set());
+  const [callOpen, setCallOpen] = React.useState(false);
 
   async function run(studentId: string, task: () => Promise<{ ok: boolean; error?: string }>, okMessage: string) {
     setPending((current) => new Set(current).add(studentId));
@@ -297,122 +310,106 @@ export function ClassBoard({ session, code }: { session: Session; code: string }
       <div className="mt-[1.5vh] flex flex-wrap items-center gap-x-6 gap-y-2 px-[3vw] text-[clamp(0.85rem,1.15vw,1.2rem)] font-semibold">
         <span className="inline-flex items-center gap-2">
           <span className="size-[0.8em] rounded-full bg-[var(--color-called)]" aria-hidden />
-          <span className="tabular">{counts.called}</span>
+          <span className="tabular">{called.length}</span>
           <span className="font-medium text-[var(--board-muted)]">{t("board.called")}</span>
         </span>
         <span className="inline-flex items-center gap-2">
-          <span className="size-[0.8em] rounded-full bg-white/70" aria-hidden />
-          <span className="tabular">{counts.present}</span>
-          <span className="font-medium text-[var(--board-muted)]">{t("board.inClass")}</span>
-        </span>
-        <span className="inline-flex items-center gap-2">
           <span className="size-[0.8em] rounded-full bg-[var(--color-dismissed)]" aria-hidden />
-          <span className="tabular">{counts.dismissed}</span>
+          <span className="tabular">{dismissed.length}</span>
           <span className="font-medium text-[var(--board-muted)]">{t("board.dismissed")}</span>
         </span>
+        <span className="font-medium text-[var(--board-muted)]">
+          {t("board.stillInClass", { count: stillInClass })}
+        </span>
+
+        <button
+          type="button"
+          onClick={() => setCallOpen(true)}
+          className="ms-auto inline-flex items-center gap-2 rounded-xl bg-white/10 px-3.5 py-2 text-[13px] font-semibold transition hover:bg-white/[0.16]"
+        >
+          <Megaphone className="size-4" />
+          {t("board.callSomeone")}
+        </button>
       </div>
 
       {/* ------------------------------------------------------------- tiles */}
       <main className="flex-1 px-[3vw] py-[2vh]">
-        {roster && roster.length === 0 ? (
-          <div className="flex h-full min-h-[40vh] flex-col items-center justify-center text-center">
-            <p className="text-2xl font-bold">{t("board.empty")}</p>
-            <p className="mt-2 text-[var(--board-muted)]">{t("board.emptyHint", { code: room.name })}</p>
-          </div>
+        {called.length === 0 && dismissed.length === 0 ? (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            className="flex h-full min-h-[45vh] flex-col items-center justify-center text-center"
+          >
+            <motion.span
+              aria-hidden
+              className="mb-6 block size-3 rounded-full bg-[var(--color-called)]"
+              animate={{ scale: [1, 1.9, 1], opacity: [0.9, 0.25, 0.9] }}
+              transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+            />
+            <p className="text-[clamp(1.4rem,2.4vw,2.4rem)] font-bold">
+              {roster && roster.length === 0 ? t("board.empty") : t("board.nothingYet")}
+            </p>
+            <p className="mt-2 max-w-md text-[var(--board-muted)]">
+              {roster && roster.length === 0
+                ? t("board.emptyHint", { code: room.name })
+                : t("board.nothingYetHint")}
+            </p>
+          </motion.div>
         ) : (
-          <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(230px,1fr))]">
-            <AnimatePresence initial={false}>
-              {tiles.map(({ student, request, state }) => {
-                const busy = pending.has(student.id);
-                const guardian = request?.guardian_name;
-                return (
-                  <motion.div
-                    key={student.id}
-                    layout
-                    initial={{ opacity: 0, scale: 0.96 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.96 }}
-                    transition={{ type: "spring", stiffness: 380, damping: 32 }}
-                    className={cn(
-                      "tile",
-                      state === "called" && "tile-called",
-                      state === "dismissed" && "tile-dismissed",
-                      busy && "opacity-70",
-                    )}
-                  >
-                    <div className="min-w-0">
-                      <p className="tile-name">{name(student)}</p>
-                      {state === "called" && request ? (
-                        <p className="mt-1.5 line-clamp-2 text-[13px] font-semibold opacity-80">
-                          {t("board.calledAt", {
-                            time: formatTime(request.called_at ?? request.requested_at, school.timezone, locale),
-                          })}
-                          {guardian ? ` · ${t("board.calledBy", { name: guardian })}` : ""}
-                        </p>
-                      ) : null}
-                      {state === "dismissed" && request ? (
-                        <p className="mt-1.5 text-[13px] font-semibold opacity-80">
-                          {t("board.dismissedAt", { time: formatTime(request.picked_up_at, school.timezone, locale) })}
-                        </p>
-                      ) : null}
-                    </div>
-
-                    <div className="mt-3 flex items-end justify-between gap-2">
-                      <span className="text-[11px] font-bold uppercase tracking-[0.14em] opacity-70">
-                        {t(state === "called" ? "board.called" : state === "dismissed" ? "board.dismissed" : "board.inClass")}
-                      </span>
-
-                      {state === "called" && request ? (
-                        <button
-                          type="button"
-                          disabled={busy}
-                          title={t("board.dismissHint", { name: student.first_name })}
-                          onClick={() =>
-                            run(student.id, () => dismissStudentAction(request.id), t("board.toast.dismissed", { name: name(student) }))
-                          }
-                          className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-called-ink)] px-3.5 py-2 text-[14px] font-bold text-[var(--color-called)] shadow-soft transition hover:brightness-110 active:scale-[0.97] disabled:opacity-60"
-                        >
-                          <DoorOpen className="size-4" />
-                          {t("board.dismiss")}
-                        </button>
-                      ) : null}
-
-                      {state === "dismissed" && request ? (
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() =>
-                            run(student.id, () => undoDismissAction(request.id), t("board.toast.restored", { name: name(student) }))
-                          }
-                          className="inline-flex items-center gap-1.5 rounded-xl bg-black/10 px-3 py-1.5 text-[13px] font-semibold transition hover:bg-black/15 disabled:opacity-60"
-                        >
-                          <Undo2 className="size-4" />
-                          {t("board.undoDismiss")}
-                        </button>
-                      ) : null}
-
-                      {state === "present" ? (
-                        <button
-                          type="button"
-                          disabled={busy}
-                          aria-label={t("board.callManually")}
-                          title={t("board.callManuallyHint")}
-                          onClick={() =>
-                            run(student.id, () => callStudentManuallyAction(student.id), t("board.toast.called", { name: name(student) }))
-                          }
-                          className="rounded-xl p-2 text-white/45 transition hover:bg-white/10 hover:text-white disabled:opacity-60"
-                        >
-                          <Megaphone className="size-4" />
-                        </button>
-                      ) : null}
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </AnimatePresence>
+          <div className="space-y-[3vh]">
+            <BoardSection
+              minTile={minTile}
+              title={t("board.calledSection")}
+              count={called.length}
+              tone="called"
+              tiles={called}
+              timeZone={school.timezone}
+              locale={locale}
+              t={t}
+              pending={pending}
+              onDismiss={(tile) =>
+                run(
+                  tile.student.id,
+                  () => dismissStudentAction(tile.request!.id),
+                  t("board.toast.dismissed", { name: name(tile.student) }),
+                )
+              }
+            />
+            <BoardSection
+              minTile={minTile}
+              title={t("board.dismissedSection")}
+              count={dismissed.length}
+              tone="dismissed"
+              tiles={dismissed}
+              timeZone={school.timezone}
+              locale={locale}
+              t={t}
+              pending={pending}
+              onUndo={(tile) =>
+                run(
+                  tile.student.id,
+                  () => undoDismissAction(tile.request!.id),
+                  t("board.toast.restored", { name: name(tile.student) }),
+                )
+              }
+            />
           </div>
         )}
       </main>
+
+      <CallStudentDialog
+        open={callOpen}
+        onClose={() => setCallOpen(false)}
+        students={uncalled}
+        onCall={(student) =>
+          run(
+            student.id,
+            () => callStudentManuallyAction(student.id),
+            t("board.toast.called", { name: name(student) }),
+          )
+        }
+      />
 
       {/* ------------------------------------------------------------ footer */}
       <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 px-[3vw] py-[1.6vh] text-[clamp(0.8rem,1vw,1.05rem)] text-[var(--board-muted)]">
@@ -420,13 +417,219 @@ export function ClassBoard({ session, code }: { session: Session; code: string }
         <p className="font-medium">
           {school.board_message
             ? school.board_message
-            : counts.present + counts.called === 0 && counts.dismissed > 0
+            : stillInClass === 0 && called.length === 0 && dismissed.length > 0
               ? t("board.allDone")
-              : counts.called === 0
+              : called.length === 0
                 ? t("board.waitingForCalls")
                 : ""}
         </p>
       </footer>
     </div>
+  );
+}
+
+
+/* -------------------------------------------------------------------------- */
+
+type Translate = (key: MessageKey, values?: Record<string, string | number>) => string;
+
+/** One labelled band of tiles: everything called, or everything gone. */
+function BoardSection({
+  minTile,
+  title,
+  count,
+  tone,
+  tiles,
+  timeZone,
+  locale,
+  t,
+  pending,
+  onDismiss,
+  onUndo,
+}: {
+  minTile: number;
+  title: string;
+  count: number;
+  tone: "called" | "dismissed";
+  tiles: Tile[];
+  timeZone: string;
+  locale: "en" | "ar";
+  t: Translate;
+  pending: Set<string>;
+  onDismiss?: (tile: Tile) => void;
+  onUndo?: (tile: Tile) => void;
+}) {
+  if (tiles.length === 0) return null;
+
+  return (
+    <motion.section layout aria-label={title}>
+      <h2 className="mb-[1.2vh] flex items-center gap-2.5 px-1 text-[clamp(0.72rem,1vw,1.05rem)] font-bold uppercase tracking-[0.18em] text-[var(--board-muted)]">
+        <span
+          aria-hidden
+          className={cn(
+            "size-2.5 rounded-full",
+            tone === "called" ? "bg-[var(--color-called)]" : "bg-[var(--color-dismissed)]",
+          )}
+        />
+        {title}
+        <span className="tabular rounded-md bg-white/10 px-1.5 py-0.5 text-[0.9em]">{count}</span>
+      </h2>
+
+      <div
+        className="grid gap-3"
+        style={{
+          gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${minTile}px), 1fr))`,
+          ["--tile-scale" as string]: (minTile / 230).toFixed(2),
+        }}
+      >
+        <AnimatePresence initial={false} mode="popLayout">
+          {tiles.map(({ student, request }) => {
+            const busy = pending.has(student.id);
+            const full = `${student.first_name} ${student.last_name}`.trim();
+
+            return (
+              <motion.div
+                key={student.id}
+                layout
+                initial={{ opacity: 0, scale: 0.92, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.92, transition: { duration: 0.18 } }}
+                transition={{ type: "spring", stiffness: 380, damping: 30, mass: 0.7 }}
+                className={cn(
+                  "tile",
+                  tone === "called" ? "tile-called" : "tile-dismissed",
+                  busy && "pointer-events-none opacity-60",
+                )}
+              >
+                <div className="min-w-0">
+                  <p className="tile-name">{full}</p>
+                  {request ? (
+                    <p className="mt-1.5 line-clamp-2 text-[13px] font-semibold opacity-80">
+                      {tone === "called"
+                        ? t("board.calledAt", {
+                            time: formatTime(request.called_at ?? request.requested_at, timeZone, locale),
+                          })
+                        : t("board.dismissedAt", {
+                            time: formatTime(request.picked_up_at, timeZone, locale),
+                          })}
+                      {tone === "called" && request.guardian_name
+                        ? ` · ${t("board.calledBy", { name: request.guardian_name })}`
+                        : ""}
+                    </p>
+                  ) : null}
+                </div>
+
+                <div className="mt-3 flex items-end justify-end">
+                  {tone === "called" && onDismiss ? (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      title={t("board.dismissHint", { name: student.first_name })}
+                      onClick={() => onDismiss({ student, request, state: "called" })}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-called-ink)] px-3.5 py-2 text-[14px] font-bold text-[var(--color-called)] shadow-soft transition hover:brightness-110 active:scale-[0.97]"
+                    >
+                      <DoorOpen className="size-4" />
+                      {t("board.dismiss")}
+                    </button>
+                  ) : null}
+
+                  {tone === "dismissed" && onUndo ? (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => onUndo({ student, request, state: "dismissed" })}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-black/10 px-3 py-1.5 text-[13px] font-semibold transition hover:bg-black/15"
+                    >
+                      <Undo2 className="size-4" />
+                      {t("board.undoDismiss")}
+                    </button>
+                  ) : null}
+                </div>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
+      </div>
+    </motion.section>
+  );
+}
+
+/**
+ * The fallback path: a guardian turns up without the app, so the teacher finds
+ * the student by name and calls them by hand.
+ */
+function CallStudentDialog({
+  open,
+  onClose,
+  students,
+  onCall,
+}: {
+  open: boolean;
+  onClose: () => void;
+  students: StudentRow[];
+  onCall: (student: StudentRow) => void;
+}) {
+  const { t } = useI18n();
+  const [term, setTerm] = React.useState("");
+
+  const [wasOpen, setWasOpen] = React.useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setTerm("");
+  }
+
+  const results = React.useMemo(() => {
+    const needle = term.trim().toLowerCase();
+    const pool = [...students].sort(
+      (a, b) =>
+        a.first_name.localeCompare(b.first_name) || a.last_name.localeCompare(b.last_name),
+    );
+    if (!needle) return pool.slice(0, 40);
+    return pool
+      .filter((student) => `${student.first_name} ${student.last_name}`.toLowerCase().includes(needle))
+      .slice(0, 40);
+  }, [students, term]);
+
+  return (
+    <Modal open={open} onClose={onClose} title={t("board.callSomeone")} size="md">
+      <div className="sticky top-0 z-10 -mx-1 bg-[var(--color-surface)] pb-3 pt-1">
+        <div className="relative">
+          <Search className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-[var(--color-muted)]" />
+          <Input
+            data-autofocus
+            value={term}
+            onChange={(event) => setTerm(event.target.value)}
+            placeholder={t("board.callSearch")}
+            aria-label={t("common.search")}
+            className="ps-10"
+          />
+        </div>
+      </div>
+
+      {results.length === 0 ? (
+        <p className="py-10 text-center text-sm text-[var(--color-muted)]">{t("board.callNoMatch")}</p>
+      ) : (
+        <ul className="space-y-1 pb-3">
+          {results.map((student) => (
+            <li key={student.id}>
+              <button
+                type="button"
+                onClick={() => {
+                  onCall(student);
+                  onClose();
+                }}
+                className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-start transition hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
+              >
+                <Avatar name={`${student.first_name} ${student.last_name}`} size="sm" />
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+                  {`${student.first_name} ${student.last_name}`.trim()}
+                </span>
+                <Megaphone className="size-4 shrink-0 text-[var(--color-muted)]" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Modal>
   );
 }

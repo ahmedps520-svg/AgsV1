@@ -316,6 +316,14 @@ function StudentModal({
           </Field>
         </div>
 
+        <Field label={t("students.gender")} htmlFor="gender" hint={t("students.genderHint")}>
+          <Select id="gender" name="gender" defaultValue={student?.gender ?? ""}>
+            <option value="">{t("common.notSet")}</option>
+            <option value="boys">{t("students.boy")}</option>
+            <option value="girls">{t("students.girl")}</option>
+          </Select>
+        </Field>
+
         <Field label={t("students.class")} htmlFor="classroom_id">
           <Select id="classroom_id" name="classroom_id" defaultValue={student?.classroom_id ?? ""}>
             <option value="">{t("students.noClass")}</option>

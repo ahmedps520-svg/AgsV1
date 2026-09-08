@@ -1,25 +1,18 @@
 /**
- * How the app is wired up at build time.
+ * Supabase connection details, baked in at build time.
  *
- * The same static bundle serves two modes:
- *
- *  • `supabase` — a real school. Every read and write goes to Postgres, where
- *    Row Level Security and the SECURITY DEFINER workflow functions enforce
- *    exactly the same rules they did when this app rendered on a server.
- *
- *  • `demo` — no Supabase project configured. The app runs against an
- *    in-browser store so the published site can be explored end to end. Demo
- *    data never leaves the device.
+ * Both values are public by design: the anon key is meant to sit in the
+ * browser, and every request it makes is filtered by Row Level Security. The
+ * service-role key is never referenced here and must never reach the bundle.
  */
-export type AppMode = "supabase" | "demo";
-
-export function appMode(): AppMode {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
-  return url && key ? "supabase" : "demo";
+export function isConfigured(): boolean {
+  return Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() &&
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim(),
+  );
 }
 
-export const IS_DEMO = appMode() === "demo";
+export const IS_CONFIGURED = isConfigured();
 
 /** Prefix for links and assets when hosted under a repository sub-path. */
 export const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";

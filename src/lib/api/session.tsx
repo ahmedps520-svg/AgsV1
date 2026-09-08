@@ -2,26 +2,20 @@
 
 import * as React from "react";
 import { createClient } from "@/lib/supabase/client";
-import { IS_DEMO } from "@/lib/api/config";
-import {
-  demoCurrentProfile,
-  demoSignIn,
-  demoSignOut,
-  demoState,
-  subscribeDemo,
-} from "@/lib/api/demo-store";
-import type { ProfileRow, SchoolRow, UserRole } from "@/lib/types/database";
+import { IS_CONFIGURED } from "@/lib/api/config";
+import type { ProfileRow, SchoolRow, SectionScope, UserRole } from "@/lib/types/database";
 
 export interface Session {
   userId: string;
   email: string | null;
   profile: ProfileRow;
   school: SchoolRow | null;
+  /** Which classes this account may open. */
+  scope: SectionScope;
 }
 
 interface SessionContextValue {
   session: Session | null;
-  /** `loading` until we know whether anyone is signed in. */
   status: "loading" | "authenticated" | "anonymous";
   refresh: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
@@ -32,15 +26,10 @@ const SessionContext = React.createContext<SessionContextValue | null>(null);
 
 /** Where each role lands after signing in. */
 export function homePathForRole(role: UserRole): string {
-  switch (role) {
-    case "parent":
-      return "/parent";
-    default:
-      return "/board";
-  }
+  return role === "parent" ? "/parent" : "/board";
 }
 
-async function loadSupabaseSession(): Promise<Session | null> {
+async function loadSession(): Promise<Session | null> {
   const supabase = createClient();
 
   // getUser() revalidates the token with Supabase rather than trusting storage.
@@ -67,38 +56,33 @@ async function loadSupabaseSession(): Promise<Session | null> {
     school = data ?? null;
   }
 
-  return { userId: user.id, email: user.email ?? profile.email, profile, school };
-}
-
-async function loadDemoSession(): Promise<Session | null> {
-  const profile = demoCurrentProfile();
-  if (!profile) return null;
   return {
-    userId: profile.id,
-    email: profile.email,
+    userId: user.id,
+    email: user.email ?? profile.email,
     profile,
-    school: demoState().school,
+    school,
+    scope: profile.section_scope ?? "all",
   };
 }
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = React.useState<Session | null>(null);
-  const [status, setStatus] = React.useState<SessionContextValue["status"]>("loading");
+  const [status, setStatus] = React.useState<SessionContextValue["status"]>(
+    IS_CONFIGURED ? "loading" : "anonymous",
+  );
 
   const refresh = React.useCallback(async () => {
-    const next = IS_DEMO ? await loadDemoSession() : await loadSupabaseSession();
+    if (!IS_CONFIGURED) return;
+    const next = await loadSession();
     setSession(next);
     setStatus(next ? "authenticated" : "anonymous");
   }, []);
 
   React.useEffect(() => {
+    if (!IS_CONFIGURED) return;
+
     // Deferred a tick so the first resolve lands after this effect commits.
     queueMicrotask(() => void refresh());
-
-    if (IS_DEMO) {
-      // Keep the signed-in profile in step when another tab edits the school.
-      return subscribeDemo(() => void refresh());
-    }
 
     const supabase = createClient();
     const {
@@ -114,18 +98,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = React.useCallback<SessionContextValue["signIn"]>(
     async (email, password) => {
-      if (IS_DEMO) {
-        const profile = demoSignIn(email);
-        if (!profile) {
-          return { error: "Pick one of the demo accounts listed below to explore the app." };
-        }
-        await refresh();
-        return { error: null };
-      }
-
       const supabase = createClient();
       const { error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
+        email: email.trim().toLowerCase(),
         password,
       });
 
@@ -133,7 +108,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         // Never reveal whether the address exists.
         return {
           error: error.message.toLowerCase().includes("invalid")
-            ? "That email and password don't match. Please try again."
+            ? "invalid"
             : error.message,
         };
       }
@@ -145,10 +120,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signOut = React.useCallback(async () => {
-    if (IS_DEMO) demoSignOut();
-    else await createClient().auth.signOut();
-    await refresh();
-  }, [refresh]);
+    await createClient().auth.signOut();
+    setSession(null);
+    setStatus("anonymous");
+  }, []);
 
   const value = React.useMemo<SessionContextValue>(
     () => ({ session, status, refresh, signIn, signOut }),

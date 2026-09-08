@@ -86,20 +86,39 @@ export const viewport: Viewport = {
  * so framing is blocked by the script below instead. On a host that can set
  * headers, send `frame-ancestors 'none'` and drop that script.
  */
+
+/**
+ * The API origin the bundle was built against. Naming the one project rather
+ * than `*.supabase.co` means a stolen script cannot phone home to somebody
+ * else's Supabase, and it lets a self-hosted or local stack work unchanged.
+ */
+const apiOrigin = (() => {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").origin;
+  } catch {
+    return "https://*.supabase.co";
+  }
+})();
+
+const socketOrigin = apiOrigin.replace(/^http/, "ws");
+const isHttps = !apiOrigin.startsWith("http://");
+
 const CSP = [
   "default-src 'self'",
   "base-uri 'self'",
   "object-src 'none'",
   "form-action 'self'",
-  "img-src 'self' data: blob: https://*.supabase.co",
+  `img-src 'self' data: blob: ${apiOrigin}`,
   "font-src 'self' data:",
   // Next.js inlines a small bootstrap script and its streamed payloads.
   "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+  `connect-src 'self' ${apiOrigin} ${socketOrigin}`,
   "manifest-src 'self'",
   "worker-src 'self'",
-  "upgrade-insecure-requests",
+  // Only meaningful when everything is already https; it would break a local
+  // stack served over plain http.
+  ...(isHttps ? ["upgrade-insecure-requests"] : []),
 ].join("; ");
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

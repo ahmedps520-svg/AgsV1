@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, CircleUser, GraduationCap, Star } from "lucide-react";
+import { ArrowRight, CircleUser, GraduationCap, Settings2, Star } from "lucide-react";
 import { useI18n } from "@/lib/i18n/provider";
 import { useLoad } from "@/lib/api/use-load";
 import { getClassrooms, getStudents } from "@/lib/api/queries";
@@ -80,7 +80,37 @@ export function ClassPicker({ session }: { session: Session }) {
     [classrooms],
   );
 
-  const effectiveGender: ClassGender | null = level && isKg(level) ? "mixed" : gender;
+  // A shared section login only reads its own half of the school, so offer
+  // exactly the levels and genders it can actually open — an account that will
+  // never see a girls' class should not be shown the button.
+  const available = React.useMemo(() => {
+    const levels = new Set<string>();
+    const genders = new Map<string, Set<ClassGender>>();
+    for (const room of classrooms) {
+      levels.add(room.level);
+      if (!genders.has(room.level)) genders.set(room.level, new Set());
+      genders.get(room.level)!.add(room.gender);
+    }
+    return { levels, genders };
+  }, [classrooms]);
+
+  // True only when this account can actually reach both halves of the school.
+  const splitBySection = [...available.genders.values()].some(
+    (set) => set.has("boys") && set.has("girls"),
+  );
+
+  const kgLevels = KG_LEVELS.filter((value) => available.levels.has(value));
+  const gradeLevels = GRADE_LEVELS.filter((value) => available.levels.has(value));
+  const levelGenders = level ? [...(available.genders.get(level) ?? [])] : [];
+
+  // Kindergarten is mixed, and a boys-only account has nothing to choose
+  // between — in both cases skip the step rather than show one button.
+  const effectiveGender: ClassGender | null =
+    level && isKg(level)
+      ? "mixed"
+      : levelGenders.length === 1
+        ? levelGenders[0]
+        : gender;
   const sections = level ? (isKg(level) ? KG_SECTIONS : GRADE_SECTIONS) : [];
 
   const chosenCode =
@@ -120,6 +150,18 @@ export function ClassPicker({ session }: { session: Session }) {
         <div className="mx-auto flex w-full max-w-4xl items-center gap-3">
           <Logo schoolName={school.name} compact className="min-w-0 flex-1" />
           <LanguageToggle />
+          {/* The picker sits outside the admin shell, so this is an
+              administrator's only way back into the management screens. */}
+          {session.profile.role === "admin" ? (
+            <Link
+              href="/students"
+              aria-label={t("nav.admin")}
+              className="inline-flex items-center gap-2 rounded-xl px-2.5 py-2 text-[13px] font-semibold text-[var(--color-muted)] transition hover:bg-black/5 hover:text-[var(--color-ink)] dark:hover:bg-white/10"
+            >
+              <Settings2 className="size-5" />
+              <span className="hidden sm:inline">{t("nav.admin")}</span>
+            </Link>
+          ) : null}
           <Link
             href="/account"
             aria-label={t("common.account")}
@@ -132,7 +174,9 @@ export function ClassPicker({ session }: { session: Session }) {
 
       <main id="main" className="mx-auto w-full max-w-4xl px-4 pb-24 pt-8 sm:px-6">
         <h1 className="text-3xl font-extrabold tracking-[-0.03em] sm:text-4xl">{t("picker.title")}</h1>
-        <p className="mt-1.5 text-[15px] text-[var(--color-muted)]">{t("picker.subtitle")}</p>
+        <p className="mt-1.5 text-[15px] text-[var(--color-muted)]">
+          {t(splitBySection ? "picker.subtitle" : "picker.subtitleOneSection")}
+        </p>
 
         {loading ? (
           <div className="mt-8 space-y-4">
@@ -174,11 +218,13 @@ export function ClassPicker({ session }: { session: Session }) {
 
             {/* Step 1 — level */}
             <section className="mt-8">
+              {kgLevels.length > 0 ? (
+                <>
               <h2 className="mb-2.5 text-[12px] font-bold uppercase tracking-wider text-[var(--color-muted)]">
                 {t("picker.kindergarten")}
               </h2>
               <div className="flex flex-wrap gap-2">
-                {KG_LEVELS.map((value) => (
+                {kgLevels.map((value) => (
                   <button
                     key={value}
                     type="button"
@@ -193,12 +239,19 @@ export function ClassPicker({ session }: { session: Session }) {
                   </button>
                 ))}
               </div>
+                </>
+              ) : null}
 
-              <h2 className="mb-2.5 mt-6 text-[12px] font-bold uppercase tracking-wider text-[var(--color-muted)]">
+              {gradeLevels.length > 0 ? (
+                <>
+              <h2 className={cn(
+                "mb-2.5 text-[12px] font-bold uppercase tracking-wider text-[var(--color-muted)]",
+                kgLevels.length > 0 && "mt-6",
+              )}>
                 {t("picker.grades")}
               </h2>
               <div className="flex flex-wrap gap-2">
-                {GRADE_LEVELS.map((value) => (
+                {gradeLevels.map((value) => (
                   <button
                     key={value}
                     type="button"
@@ -213,16 +266,20 @@ export function ClassPicker({ session }: { session: Session }) {
                   </button>
                 ))}
               </div>
+                </>
+              ) : null}
             </section>
 
             {/* Step 2 — boys / girls */}
-            {level && !isKg(level) ? (
+            {level && !isKg(level) && levelGenders.length > 1 ? (
               <section className="mt-7 animate-[rise_0.4s_ease-out_both]">
                 <h2 className="mb-2.5 text-[12px] font-bold uppercase tracking-wider text-[var(--color-muted)]">
                   {t("classes.gender")}
                 </h2>
                 <div className="grid max-w-md grid-cols-2 gap-2.5">
-                  {(["boys", "girls"] as const).map((value) => (
+                  {(["boys", "girls"] as const)
+                    .filter((value) => levelGenders.includes(value))
+                    .map((value) => (
                     <button
                       key={value}
                       type="button"

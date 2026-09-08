@@ -12,6 +12,7 @@ import { useLoad } from "@/lib/api/use-load";
 import { PageBody, PageHeader } from "@/components/layout/page-header";
 import { useI18n } from "@/lib/i18n/provider";
 import { StudentsManager } from "@/components/admin/students-manager";
+import { PromoteCard } from "@/components/admin/promote-card";
 import { ErrorMessage, QueueSkeleton } from "@/components/ui/primitives";
 
 export default function StudentsPage() {
@@ -46,13 +47,23 @@ export default function StudentsPage() {
           <QueueSkeleton rows={5} />
         </div>
       ) : (
-        <StudentsManager
-          students={data.students}
-          classrooms={data.classrooms}
-          parents={data.parents}
-          guardianLinks={data.guardianLinks}
-          canEdit={Boolean(isAdmin)}
-        />
+        <>
+          <StudentsManager
+            students={data.students}
+            classrooms={data.classrooms}
+            parents={data.parents}
+            guardianLinks={data.guardianLinks}
+            canEdit={Boolean(isAdmin)}
+          />
+
+          {/* Moving the whole school up a year rewrites this roster, so it
+              lives underneath it rather than buried in school settings. */}
+          {isAdmin ? (
+            <div className="mt-8 max-w-2xl">
+              <PromoteCard />
+            </div>
+          ) : null}
+        </>
       )}
     </PageBody>
   );

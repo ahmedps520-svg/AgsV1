@@ -9,10 +9,9 @@ import { Modal } from "@/components/ui/modal";
 import { Avatar, EmptyState, ErrorMessage } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/lib/i18n/provider";
-import { IS_DEMO } from "@/lib/api/config";
 import { createAccountAction, updatePersonAction } from "@/lib/api/mutations";
 import { cn } from "@/lib/utils";
-import type { ProfileRow, UserRole } from "@/lib/types/database";
+import type { ProfileRow, SectionScope, UserRole } from "@/lib/types/database";
 
 const ROLES: UserRole[] = ["admin", "staff", "parent"];
 
@@ -128,6 +127,11 @@ export function PeopleManager({
                     {person.email}
                     {person.phone ? ` · ${person.phone}` : ""}
                   </p>
+                  {person.role === "staff" && person.section_scope !== "all" ? (
+                    <p className="mt-0.5 text-[12.5px] text-[var(--color-muted)]">
+                      {t(`scope.${person.section_scope}`)}
+                    </p>
+                  ) : null}
                   {person.role === "parent" ? (
                     <p className="mt-1 truncate text-[12.5px] text-[var(--color-muted)]">
                       {children.length > 0 ? t("people.canCollect", { names: children.join(", ") }) : t("people.noneLinked")}
@@ -160,19 +164,11 @@ export function PeopleManager({
 
 function CreatePersonModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useI18n();
-  const toast = useToast();
   const [state, submit, submitting] = useActionState(createAccountAction, null);
   const [role, setRole] = React.useState<UserRole>("staff");
+  const [scope, setScope] = React.useState<SectionScope>("boys");
 
-  useEffect(() => {
-    if (state?.ok && IS_DEMO) {
-      toast.success(t("people.created"));
-      onClose();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state]);
-
-  const created = state?.ok && !IS_DEMO ? state.data : null;
+  const created = state?.ok ? state.data : null;
 
   return (
     <Modal open={open} onClose={onClose} title={t(created ? "people.created" : "people.createTitle")} description={created ? undefined : t("people.createBody")}>
@@ -212,6 +208,25 @@ function CreatePersonModal({ open, onClose }: { open: boolean; onClose: () => vo
           <p className="rounded-xl bg-black/[0.03] px-3.5 py-2.5 text-[12.5px] leading-relaxed text-[var(--color-muted)] dark:bg-white/[0.05]">
             {t(`people.roleHint.${role}`)}
           </p>
+
+          {role === "staff" ? (
+            <Field label={t("people.scope")} htmlFor="section_scope" hint={t("people.scopeHint")}>
+              <Select
+                id="section_scope"
+                name="section_scope"
+                value={scope}
+                onChange={(event) => setScope(event.target.value as SectionScope)}
+              >
+                {(["boys", "girls", "mixed", "all"] as SectionScope[]).map((value) => (
+                  <option key={value} value={value}>
+                    {t(`scope.${value}`)}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          ) : (
+            <input type="hidden" name="section_scope" value={role === "admin" ? "all" : "all"} />
+          )}
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label={t("people.phone")} htmlFor="phone">
               <Input id="phone" name="phone" type="tel" maxLength={40} dir="ltr" />
@@ -315,6 +330,20 @@ function EditPersonModal({
           </Select>
           {isSelf ? <input type="hidden" name="role" value={person.role} /> : null}
         </Field>
+
+        {person.role === "staff" ? (
+          <Field label={t("people.scope")} htmlFor="edit_scope" hint={t("people.scopeHint")}>
+            <Select id="edit_scope" name="section_scope" defaultValue={person.section_scope ?? "all"}>
+              {(["boys", "girls", "mixed", "all"] as SectionScope[]).map((value) => (
+                <option key={value} value={value}>
+                  {t(`scope.${value}`)}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        ) : (
+          <input type="hidden" name="section_scope" value={person.section_scope ?? "all"} />
+        )}
 
         <Field label={t("people.phone")} htmlFor="edit_phone">
           <Input id="edit_phone" name="phone" type="tel" defaultValue={person.phone ?? ""} maxLength={40} dir="ltr" />

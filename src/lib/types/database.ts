@@ -45,11 +45,15 @@ export type ProfileRow = {
   vehicle_description: string | null;
   avatar_url: string | null;
   is_active: boolean;
+  section_scope: SectionScope;
   created_at: string;
   updated_at: string;
 }
 
 export type ClassGender = "boys" | "girls" | "mixed";
+
+/** Which classes an account may open. `all` is unrestricted (administrators). */
+export type SectionScope = "boys" | "girls" | "mixed" | "all";
 
 export type ClassroomRow = {
   id: string;
@@ -76,6 +80,8 @@ export type StudentRow = {
   last_name: string;
   grade: string;
   classroom_id: string | null;
+  /** Needed to place a mixed kindergarten student into a split Grade 1 class. */
+  gender: ClassGender | null;
   pickup_number: string | null;
   photo_url: string | null;
   notes: string | null;
@@ -115,6 +121,7 @@ export type DismissalRequestRow = {
   student_name: string;
   student_grade: string | null;
   classroom_name: string | null;
+  class_gender: ClassGender | null;
   pickup_number: string | null;
   guardian_name: string | null;
   created_at: string;
@@ -225,12 +232,17 @@ export type Database = {
         Args: Record<string, never>;
         Returns: number;
       };
+      promote_all_students: {
+        Args: Record<string, never>;
+        Returns: { promoted: number; graduated: number; skipped: number };
+      };
     };
     Enums: {
       user_role: UserRole;
       dismissal_status: DismissalStatus;
       request_source: RequestSource;
       class_gender: ClassGender;
+      section_scope: SectionScope;
     };
     CompositeTypes: Record<string, never>;
   };

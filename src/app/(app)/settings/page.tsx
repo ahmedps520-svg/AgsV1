@@ -29,11 +29,12 @@ export default function SettingsPage() {
       />
       <div className="max-w-2xl">
         {ready && session?.school ? (
-          <SettingsForm school={session.school} />
+          <>
+            <SettingsForm school={session.school} />
+          </>
         ) : (
-          <div className="mt-6 space-y-4">
+          <div className="mt-6">
             <Skeleton className="h-56 rounded-2xl" />
-            <Skeleton className="h-64 rounded-2xl" />
           </div>
         )}
       </div>

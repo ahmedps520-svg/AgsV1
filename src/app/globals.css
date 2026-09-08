@@ -338,7 +338,9 @@
 }
 
 .tile-name {
-  font-size: clamp(1.15rem, 1.7vw, 1.9rem);
+  /* `--tile-scale` grows when few names are on the board, so a class with one
+     student waiting reads from the back of the room. */
+  font-size: clamp(1.15rem, calc(1.7vw * var(--tile-scale, 1)), calc(1.9rem * var(--tile-scale, 1)));
   font-weight: 800;
   line-height: 1.1;
   letter-spacing: -0.02em;

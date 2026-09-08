@@ -34,10 +34,11 @@ declare
   v_admin_pw     text := 'change-me-before-you-run-this';
 
   -- How many sections each grade is divided into. Six is the maximum the class
-  -- codes allow (7b1 … 7b6). Extra classes can be added from the app.
-  v_sections     int  := 2;
-  -- Kindergarten sections are lettered: A, B, … up to this many.
-  v_kg_sections  int  := 2;
+  -- codes allow (7b1 … 7b6). To change this later without touching anything
+  -- that already exists, run supabase/add-classes.sql instead.
+  v_sections     int  := 6;
+  -- Kindergarten sections are lettered: A, B, … up to this many. Max 6.
+  v_kg_sections  int  := 4;
   -- ----------------------------------------------------------------------- --
 
   v_school   uuid;

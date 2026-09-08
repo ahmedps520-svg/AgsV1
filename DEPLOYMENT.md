@@ -82,7 +82,8 @@ Open [`supabase/setup.sql`](./supabase/setup.sql), change the four values in the
 into the Supabase **SQL editor** and run it. It creates:
 
 - the school record
-- every class: KG1–KG3 lettered and mixed, Grades 1–12 split boys / girls
+- every class: KG1–KG3 lettered and mixed (A–D), Grades 1–12 split boys /
+  girls with six sections each — 156 in total
 - the four logins the school signs in with
 
 It is safe to run twice; nothing is duplicated.
@@ -204,6 +205,7 @@ headers, send `Content-Security-Policy: frame-ancestors 'none'` and
 | "Couldn't load the queue" | Schema not applied | Run `supabase/install.sql` in the SQL editor, or `npx supabase db push` |
 | "AGS Dismissal is already installed" | `install.sql` run a second time | Nothing was changed. Go on to `setup.sql` |
 | `relation "public.schools" does not exist` | `install.sql` did not finish — usually a paste cut short | Re-run `install.sql` and check it ends with a row reading `installed` |
+| A class is missing from the picker | The school has more sections than were created | Run `supabase/add-classes.sql`, setting the two counts at the top |
 | Sign-in rejects the shared password | `setup.sql` not run, or run before the schema | Run `install.sql` first, then `setup.sql` |
 | Pill stuck on **Reconnecting** | `dismissal_requests` not in the realtime publication, or a proxy blocking websockets | Check *Database → Replication*; allow `wss://` to your project host. The board still refreshes on a timer meanwhile |
 | Parent sees no students | No guardian links | *Students → Edit → Who may pick up* |

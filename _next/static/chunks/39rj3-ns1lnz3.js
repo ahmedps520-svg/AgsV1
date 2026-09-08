@@ -1,0 +1,1 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,27671,e=>{"use strict";var t=e.i(43476),o=e.i(71645),r=e.i(18566),u=e.i(52592);e.s(["default",0,function(){let e=(0,r.useRouter)();return(0,o.useEffect)(()=>{e.replace("/board/")},[e]),(0,t.jsx)(u.BootScreen,{})}])}]);

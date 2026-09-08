@@ -13,31 +13,29 @@ Open **Settings → Pages → Build and deployment → Source** and pick either:
 
 | Source | Then set | What happens |
 | --- | --- | --- |
-| **GitHub Actions** *(recommended)* | nothing else | The `deploy` job in `.github/workflows/deploy-pages.yml` publishes each build. |
-| **Deploy from a branch** | branch **`gh-pages`**, folder **`/ (root)`** | Every run force-pushes the built site to `gh-pages`, and GitHub serves it. |
+| **Deploy from a branch** | branch **`main`**, folder **`/ (root)`** *(the current setting)* | The build job commits the export to the root of `main` and GitHub serves it as-is. |
+| **GitHub Actions** | nothing else | The `deploy` job in `.github/workflows/deploy-pages.yml` publishes each build. |
+| **Deploy from a branch** | branch **`gh-pages`**, folder **`/ (root)`** | Every run force-pushes the built site to `gh-pages`. |
 
-> **Do not** point "Deploy from a branch" at **`main`**. That branch holds the
-> source, so GitHub's built-in Jekyll builder publishes the README instead of
-> the app — which looks like "Pages is on but the site is wrong".
+The workflow handles all three, so it stays green whichever you pick.
 
-The `gh-pages` branch is created automatically by the first workflow run, so it
-is available in the branch dropdown straight away.
+> With **main / (root)**, `.nojekyll` at the root is what stops GitHub's Jekyll
+> builder from publishing the README instead of the app. Do not delete it, and
+> never run `scripts/publish-to-root.mjs` by hand — only CI should.
 
 The site then appears at <https://ahmedps520-svg.github.io/AgsV1/>.
 
 While you are in the settings, set **Settings → General → Default branch** to
 `main` so pull requests and clones start from the right place.
 
-## 1. The site as published — demo mode
+## 1. The site before a database is connected
 
-With no Supabase variables configured, the workflow builds the **demo**: a full
-school (KG1–Grade 12, boys and girls sections, ~700 students) in the visitor's
-browser, with per-tab sign-in so one person can be a teacher in one tab and a
-parent in another. It is safe to share — nothing is stored anywhere but the
-visitor's own device.
+With no Supabase variables configured, the workflow still builds and publishes
+the site, but the sign-in screen says the school's database has not been
+connected yet. There is no demo mode: nothing in this app pretends to work.
 
-Nothing else is needed for this. Push to `main`, wait for the "Deploy to GitHub Pages"
-workflow, and the site updates.
+Push to `main`, wait for the "Deploy to GitHub Pages" workflow, and the site
+updates. Step 2 is what makes it usable.
 
 > **HTTPS.** GitHub Pages serves `github.io` sites over HTTPS. In
 > *Settings → Pages*, make sure **Enforce HTTPS** is ticked so plain-HTTP requests are
@@ -65,24 +63,30 @@ workflow, and the site updates.
 5. **Database → Replication:** confirm `dismissal_requests` is in the `supabase_realtime`
    publication (the migration adds it — this is a sanity check).
 
-### b. Create the school and its first administrator
+### b. Create the school, the classes and the staff logins
 
-There is no self-service sign-up by design. Run this in the SQL editor:
+Open `supabase/setup.sql`, change the four values in the `settings` block at the
+top — above all `v_admin_pw` — then paste the whole file into the Supabase **SQL
+editor** and run it. It creates:
 
-```sql
-insert into public.schools (name, slug, timezone)
-values ('Advanced Generations International Schools', 'ags', 'Asia/Riyadh')
-returning id;
-```
+- the school record
+- every class: KG1–KG3 lettered and mixed, Grades 1–12 split boys / girls
+- the four logins the school signs in with
 
-Then **Authentication → Users → Add user**, with *Auto Confirm* on and this user metadata
-(paste the id the query returned):
+It is safe to run twice; nothing is duplicated.
 
-```json
-{ "full_name": "Your Name", "role": "admin", "school_id": "<the school id>" }
-```
+| Email | Role | Sees |
+| --- | --- | --- |
+| `admin@ags.edu.sa` | Administrator | Everything |
+| `dismissal.boys@ags.edu.sa` | Teacher | Boys' classes only |
+| `dismissal.girls@ags.edu.sa` | Teacher | Girls' classes only |
+| `dismissal.kg@ags.edu.sa` | Teacher | Kindergarten only |
 
-The `handle_new_user` trigger builds the matching profile.
+One shared password per building is how the school works, and it is safe here
+because the confinement is enforced by Row Level Security on classes, students
+and calls — not by hiding buttons. Change it from **Account** whenever staff
+change, and *do* change the administrator's password immediately: that account
+can move the whole school up a grade.
 
 ### c. Point the site at it
 
@@ -106,30 +110,44 @@ now talks to your database.
 Sign in as the administrator and set up **Settings** (timezone first — it drives every
 clock), **Classes**, and **Students**.
 
-**Logins** are created in the Supabase dashboard, because the app cannot hold the key
-that creates accounts. For each teacher, parent, driver or display screen:
+**Logins** are created from the **People** page, which calls the `create-account`
+Edge Function. Deploy it once:
 
-*Authentication → Users → Add user*, Auto Confirm on, metadata:
-
-```json
-{ "full_name": "Fatima AlShehri", "role": "parent", "school_id": "<school id>" }
+```bash
+npx supabase functions deploy create-account
 ```
 
-`role` is one of `admin`, `staff`, `parent`, `display`. The person appears on the
-**People** page immediately. Then, for parents and drivers, open **Students → Edit → Who
-may pick up** and link them — *this is the permission that matters*.
+It needs no extra configuration — Supabase injects `SUPABASE_URL`,
+`SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` into the function's own
+environment. That key is why account creation lives there and not in the app:
+a static site is delivered to every visitor, so it can never hold one. The
+function re-reads the caller's identity with the caller's own token and refuses
+anyone who is not an active administrator of the school being written to.
 
-If you later want in-app account creation, add a Supabase Edge Function that calls
-`auth.admin.createUser` with the service-role key held server-side, and have the People
-form call it. The form and the profile sync are already there.
+For a parent or driver, creating the login is only half the job: open
+**Students → Edit → Who may pick up** and link them to their children — *that*
+is the permission that matters.
+
+Roles are `admin`, `staff` and `parent`. A driver is a `parent` account whose
+guardian link says "Authorised driver"; there is no separate driver role, and no
+read-only screen account — a teacher login can open any board it is scoped to.
+
+### e. At the end of the school year
+
+**Students → Move everyone up a grade.** Grade 12 leaves, everyone else moves up
+one, and kindergarten leavers are placed in a boys' or girls' Grade 1 class by
+the gender on their own record. A student with no gender recorded stays where
+they are rather than being put in the wrong building — the confirmation dialog
+tells you how many that was.
 
 ---
 
-## 3. The hallway screen
+## 3. A board on a classroom screen
 
-Create a `display` account, sign in once on the TV's browser, open `/board/`, and press
-**Fullscreen**. Controls fade after a few seconds of no input. Turn on the chime for an
-audible cue when a name appears.
+Sign in on the screen's browser with the building's shared login, pick the class,
+and press **Fullscreen**. Controls fade after a few seconds of no input. Turn on
+the chime for an audible cue when a name appears. The device remembers the class
+it last opened, so a screen that reboots comes back to the same board.
 
 ---
 
@@ -168,9 +186,11 @@ headers, send `Content-Security-Policy: frame-ancestors 'none'` and
 
 | Symptom | Cause | Fix |
 | --- | --- | --- |
-| Site shows the demo, not my school | Variables not set, or workflow not re-run | Check *Actions → Variables*, then re-run the workflow |
+| Sign-in says the database isn't connected | Variables not set, or workflow not re-run | Check *Actions → Variables*, then re-run the workflow |
+| "Only a school administrator can create accounts" | Signed in as a teacher, or the Edge Function is not deployed | Sign in as the admin; `npx supabase functions deploy create-account` |
+| A teacher can't find their class | That account is scoped to the other building | Use the login for their section, or `dismissal.kg@…` for kindergarten |
 | "Couldn't load the queue" | Migrations not applied | `npx supabase db push` |
-| Pill stuck on **Reconnecting** | `dismissal_requests` not in the realtime publication, or a proxy blocking websockets | Check *Database → Replication*; allow `wss://` to `*.supabase.co` |
+| Pill stuck on **Reconnecting** | `dismissal_requests` not in the realtime publication, or a proxy blocking websockets | Check *Database → Replication*; allow `wss://` to your project host. The board still refreshes on a timer meanwhile |
 | Parent sees no students | No guardian links | *Students → Edit → Who may pick up* |
 | Invitation / reset email lands on an error | Redirect URL missing | Add `…/AgsV1/auth/callback/` in *Authentication → URL Configuration* |
 | Deep link 404s after refresh | Pages served an old build | Wait for the workflow to finish; hard-refresh |

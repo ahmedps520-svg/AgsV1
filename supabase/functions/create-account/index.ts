@@ -82,11 +82,17 @@ Deno.serve(async (request) => {
   const fullName = String(body.full_name ?? "").trim();
   const role = String(body.role ?? "");
   const scope = String(body.section_scope ?? "all");
+  // An office handing one shared password to a whole building needs to choose
+  // it; leaving this out generates a one-time password instead.
+  const chosen = body.password === undefined ? null : String(body.password);
 
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ error: "Enter a valid email address." }, 400);
   if (!fullName) return json({ error: "Enter a full name." }, 400);
   if (!ROLES.has(role)) return json({ error: "Unknown role." }, 400);
   if (!SCOPES.has(scope)) return json({ error: "Unknown section." }, 400);
+  if (chosen !== null && chosen.length < 10) {
+    return json({ error: "Choose a password of at least 10 characters." }, 400);
+  }
 
   // 3. Create the login. Only now is the privileged key used, and only for the
   //    school the verified administrator belongs to.
@@ -94,7 +100,7 @@ Deno.serve(async (request) => {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  const password = temporaryPassword();
+  const password = chosen ?? temporaryPassword();
   const { error: createError } = await admin.auth.admin.createUser({
     email,
     password,
@@ -103,6 +109,7 @@ Deno.serve(async (request) => {
       full_name: fullName,
       role,
       school_id: caller.school_id,
+      section_scope: role === "staff" ? scope : "all",
     },
   });
 
@@ -129,5 +136,7 @@ Deno.serve(async (request) => {
 
   if (updateError) return json({ error: updateError.message }, 400);
 
-  return json({ email, password });
+  // Echo the password back only when this function invented it; there is no
+  // reason to repeat one the caller already knows.
+  return json({ email, ...(chosen === null ? { password } : {}) });
 });

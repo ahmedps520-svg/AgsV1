@@ -19,9 +19,14 @@ and not a demo that only updates the tab you are looking at.
 
 - **Every class has its own board.** There is no shared school-wide queue.
 - **Three roles: administrator, teacher, parent.** A teacher signs in and has
-  full use of any class board — there is no separate read-only screen account.
-  A driver is a parent-role account linked to a student; whether they are the
-  mother, father or a driver is the *relationship* on that link, not a role.
+  full use of any class board in their section — there is no separate read-only
+  screen account. A driver is a parent-role account linked to a student; whether
+  they are the mother, father or a driver is the *relationship* on that link,
+  not a role.
+- **One shared teacher login per building.** Boys, girls and kindergarten each
+  have their own; the account only ever sees its own half of the school.
+- **Only what has happened shows on a board.** Called in yellow, gone in grey,
+  and a count of everyone still in class. Nobody reads thirty names to find two.
 - **Parents do the calling.** Staff can call manually as a fallback when a
   guardian arrives without the app.
 - **Class codes:** `7b1` is Grade 7, boys, section 1. `7g1` is the girls'
@@ -30,11 +35,8 @@ and not a demo that only updates the tab you are looking at.
 - **Bilingual.** English and Arabic, switchable per device, with full RTL. Times
   and dates follow the language; Asia/Riyadh drives every clock.
 
-Signing in takes a teacher straight to their homeroom board, or to a picker:
-grade → boys/girls → section.
-
-> The parent-facing app at `/parent` is a **preview** of what a parent's call
-> does. The real parent app is a separate project.
+Signing in leads to a picker: grade → section (and boys or girls, when the
+account can reach both). Classes the account cannot open are never offered.
 
 ## Live site
 
@@ -46,19 +48,31 @@ Published to GitHub Pages at **<https://ahmedps520-svg.github.io/AgsV1/>**.
 > them on every push — never edit them by hand, and never run
 > `scripts/publish-to-root.mjs` yourself. `.published` lists them.
 
-With no Supabase project configured the site runs in **demo mode**: a complete
-school (KG1–Grade 12, both sections, ~700 students) lives in the visitor's
-browser, and each browser tab keeps its own sign-in — so open a teacher in one
-tab and a parent in another and watch a call move the board.
+Until the two Supabase values are set as repository *variables*, the published site
+builds without a database and the sign-in screen says so. There is no demo mode
+and no offline fake: every name on a board came out of Postgres.
 
-Demo accounts (no password needed — tap one on the sign-in screen):
+## Who signs in
 
-| Email | Role | What it shows |
-| --- | --- | --- |
-| `admin@ags.demo` | Administrator | Classes, students, people, settings |
-| `teacher@ags.demo` | Teacher | Opens 7b1 |
-| `teacher.girls@ags.demo` | Teacher | Opens 5g1 |
-| `parent@ags.demo` | Parent | Ahmed (7b1), Salman (3b1), Noura (5g1) |
+One shared login per building, because that is how the school works — every
+teacher on the boys' side types the same email and password, then picks their
+own class.
+
+| Email | Sees |
+| --- | --- |
+| `dismissal.boys@ags.edu.sa` | Every boys' class, Grades 1–12 |
+| `dismissal.girls@ags.edu.sa` | Every girls' class, Grades 1–12 |
+| `dismissal.kg@ags.edu.sa` | KG1–KG3 |
+| `admin@ags.edu.sa` | Everything, plus students, people and settings |
+
+Sharing a password is only safe because the confinement is in the database, not
+in the interface. `profiles.section_scope` is checked by Row Level Security on
+classes, students *and* calls, so the boys' password — passed around a staff
+room, typed on a shared tablet, eventually leaked — still cannot read a girls'
+class or call a girls' student. The class picker follows suit: an account that
+can never open a girls' class is not offered the button.
+
+Parents get their own accounts, one per guardian, linked to their children.
 
 See [DEPLOYMENT.md](./DEPLOYMENT.md) for the Pages setting and for connecting a
 real Supabase project.
@@ -68,9 +82,9 @@ real Supabase project.
 | Surface | Route | Who | What it does |
 | --- | --- | --- | --- |
 | **Class picker** | `/board` | Teachers, admins | Grade → boys/girls → section; your own classes pinned on top |
-| **Class board** | `/board?c=7b1` | Teachers, admins | Every name as a tile: yellow when called, grey when dismissed. One tap to dismiss, one to undo, one to call manually. Fullscreen and an optional chime |
-| **Parent preview** | `/parent` | Parents, drivers | Their children only, a big **I'm here**, live status, cancel |
-| **Students** | `/students` | Staff (read), admin (edit) | Roster, class assignment, pickup permissions |
+| **Class board** | `/board?c=7b1` | Teachers, admins | Only the names something has happened to: yellow when called, grey when dismissed, and a count of everyone still sitting in class. One tap to dismiss, one to undo, one to call manually. Fullscreen and an optional chime |
+| **Parent app** | `/parent` | Parents, drivers | Their children only, a big **I'm here**, live status, cancel |
+| **Students** | `/students` | Staff (read), admin (edit) | Roster, class assignment, pickup permissions, and the end-of-year promotion |
 | **Classes** | `/classrooms` | Staff (read), admin (edit) | Class codes, rooms, homeroom teachers |
 | **People** | `/people` | Admin | Accounts for administrators, teachers and parents |
 | **History** | `/history` | Staff | Every call and dismissal with exact times, CSV export |
@@ -92,17 +106,16 @@ real Supabase project.
 
 ```bash
 npm install
-npm run dev          # http://localhost:3000 in demo mode
-```
-
-To develop against a real database:
-
-```bash
 cp .env.example .env.local     # fill in the two Supabase values
 npx supabase start             # local Postgres + Auth + Realtime
 npx supabase db reset          # applies migrations, then supabase/seed.sql
-npm run dev
+npm run dev                    # http://localhost:3000
 ```
+
+`supabase/seed.sql` is for local development only — it creates a small school
+with well-known passwords. A real project is bootstrapped once with
+`supabase/setup.sql`, which creates the school, all 54 classes and the four
+staff logins and nothing else. See [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ## How it works
 
@@ -146,16 +159,19 @@ The site is static, so there is no application server between the browser and th
 database. That is safe because the security lives *in* the database:
 
 - **Row Level Security** is on for every table. A parent can read only students they are
-  a linked guardian of. Staff read only their own school. A display account can read the
-  queue and nothing else.
+  a linked guardian of. Staff read only their own school — and only the section their
+  account is scoped to, which is what makes one password per building safe.
 - `dismissal_requests` has **no** insert/update/delete policy at all. Every mutation goes
-  through a `SECURITY DEFINER` function that re-checks the caller's role and ownership.
-  A stolen browser token cannot skip a step or call another school's student.
+  through a `SECURITY DEFINER` function that re-checks the caller's role, section and
+  ownership. A stolen browser token cannot skip a step or call another school's student.
 - The anon key in the bundle is designed to be public. **No service-role key is ever built
-  in** — which is why account creation happens in the Supabase dashboard rather than in
-  the app.
+  in.** Creating a login needs that key, so it happens in the `create-account` Edge
+  Function, which verifies for itself that the caller is an active administrator before
+  the privileged client is ever constructed.
 - A strict Content Security Policy is delivered as a meta tag (GitHub Pages cannot send
-  headers): scripts and styles only from this origin, network only to Supabase.
+  headers): scripts and styles only from this origin, network only to **this project's**
+  Supabase host — not to `*.supabase.co`, so a stolen script cannot phone home to
+  somebody else's project.
 - The client-side route guards are navigation, not enforcement — bypassing one shows an
   empty shell, because RLS returns nothing to a caller who isn't entitled to it.
 
@@ -165,22 +181,22 @@ Each surface subscribes to `postgres_changes` filtered to its school and treats 
 *invalidations*: it re-reads the `dismissal_queue` view through the same RLS policies. That
 keeps derived fields correct, coalesces bursts, and means a live update can never reveal
 more than the user may see. Reconnect catch-up, visibility refresh and a slow poll keep an
-unattended wall display honest. In demo mode the same hook listens to a `BroadcastChannel`
-instead.
+unattended wall display honest.
 
 ---
 
 ## Testing
 
 ```bash
-npm run test:db    # 36 assertions against a throwaway Postgres with RLS enforced
+npm run test:db    # 24 groups against a throwaway Postgres with RLS enforced
 npm run lint       # ESLint + the React Compiler rules
 npm run typecheck  # tsc --noEmit
 npm run build      # static export into ./out
 ```
 
 `test:db` covers the state machine, timestamp clearing on undo, the audit trail, parent
-isolation, display read-only access, the parent-cancel setting and cross-school isolation.
+isolation, the parent-cancel setting, cross-school isolation, section confinement (a
+boys' account cannot read or call anything on the girls' side) and end-of-year promotion.
 It needs a local PostgreSQL install and must not be run as root.
 
 ---
@@ -191,13 +207,15 @@ It needs a local PostgreSQL install and must not be run as root.
 src/
   app/              routes (all client-rendered; static export)
   components/       ui primitives, dismissal, board, parent, admin, auth
-  hooks/            useLiveQueue (realtime / demo), useNow, useClientFlag
-  lib/api/          session, queries, mutations, demo store, change bus
+  hooks/            useLiveQueue (realtime), useNow, useClientFlag
+  lib/api/          session, queries, mutations
   lib/brand.ts      AGS name, Arabic name and crest colours
   lib/supabase/     browser client
 supabase/
-  migrations/       schema · security + RLS · workflow functions
-  seed.sql          demo school (local Supabase only)
+  migrations/       schema · security + RLS · workflow · classes · roles · scopes
+  setup.sql         one-time project bootstrap: school, classes, staff logins
+  seed.sql          small development school (local Supabase only)
+  functions/        create-account Edge Function (the only service-role caller)
   tests/            data-layer test suite + throwaway-cluster runner
 .github/workflows/  build + deploy to GitHub Pages
 scripts/            icon generation from the crest, service-worker prep

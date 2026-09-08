@@ -14,7 +14,7 @@ export function SetupNotice() {
     },
     {
       label: "Apply the schema",
-      detail: "supabase link --project-ref <ref> && supabase db push",
+      detail: "Paste supabase/install.sql into the SQL editor",
     },
     {
       label: "Run supabase/setup.sql in the SQL editor",

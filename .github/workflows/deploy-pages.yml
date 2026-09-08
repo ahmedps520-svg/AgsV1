@@ -58,6 +58,9 @@ jobs:
         run: |
           npm run lint
           npx tsc --noEmit
+          # supabase/install.sql is generated from the migrations; a migration
+          # added without regenerating it would silently ship a stale schema.
+          node scripts/build-install-sql.mjs --check
 
       - name: Build static export
         env:

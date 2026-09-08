@@ -48,7 +48,15 @@ updates. Step 2 is what makes it usable.
 ### a. Create the Supabase project
 
 1. New project at [supabase.com/dashboard](https://supabase.com/dashboard).
-2. Apply the schema:
+2. Apply the schema. Either way gives the same database:
+
+   **From a phone, or any browser** — open
+   [`supabase/install.sql`](./supabase/install.sql), copy the whole file, paste
+   it into the project's **SQL editor** and run it. Nothing in it needs
+   editing. Run it once: it stops itself with "already installed" if the schema
+   is already there, without changing anything.
+
+   **From a computer with the CLI:**
 
    ```bash
    npx supabase link --project-ref <your-project-ref>
@@ -65,9 +73,9 @@ updates. Step 2 is what makes it usable.
 
 ### b. Create the school, the classes and the staff logins
 
-Open `supabase/setup.sql`, change the four values in the `settings` block at the
-top — above all `v_admin_pw` — then paste the whole file into the Supabase **SQL
-editor** and run it. It creates:
+Open [`supabase/setup.sql`](./supabase/setup.sql), change the four values in the
+`settings` block at the top — above all `v_admin_pw` — then paste the whole file
+into the Supabase **SQL editor** and run it. It creates:
 
 - the school record
 - every class: KG1–KG3 lettered and mixed, Grades 1–12 split boys / girls
@@ -189,7 +197,9 @@ headers, send `Content-Security-Policy: frame-ancestors 'none'` and
 | Sign-in says the database isn't connected | Variables not set, or workflow not re-run | Check *Actions → Variables*, then re-run the workflow |
 | "Only a school administrator can create accounts" | Signed in as a teacher, or the Edge Function is not deployed | Sign in as the admin; `npx supabase functions deploy create-account` |
 | A teacher can't find their class | That account is scoped to the other building | Use the login for their section, or `dismissal.kg@…` for kindergarten |
-| "Couldn't load the queue" | Migrations not applied | `npx supabase db push` |
+| "Couldn't load the queue" | Schema not applied | Run `supabase/install.sql` in the SQL editor, or `npx supabase db push` |
+| "AGS Dismissal is already installed" | `install.sql` run a second time | Nothing was changed. Go on to `setup.sql` |
+| Sign-in rejects the shared password | `setup.sql` not run, or run before the schema | Run `install.sql` first, then `setup.sql` |
 | Pill stuck on **Reconnecting** | `dismissal_requests` not in the realtime publication, or a proxy blocking websockets | Check *Database → Replication*; allow `wss://` to your project host. The board still refreshes on a timer meanwhile |
 | Parent sees no students | No guardian links | *Students → Edit → Who may pick up* |
 | Invitation / reset email lands on an error | Redirect URL missing | Add `…/AgsV1/auth/callback/` in *Authentication → URL Configuration* |

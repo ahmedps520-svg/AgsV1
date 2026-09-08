@@ -12,6 +12,7 @@
     "icons": "node scripts/generate-icons.mjs",
     "db:reset": "supabase db reset",
     "db:push": "supabase db push",
+    "db:install-sql": "node scripts/build-install-sql.mjs",
     "test:db": "./supabase/tests/run.sh",
     "preview": "npx --yes serve out -l 3000"
   },

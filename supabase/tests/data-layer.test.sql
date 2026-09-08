@@ -469,13 +469,13 @@ select public.assert(
   'Ahmed moved from 7b1 to 8b1');
 
 select public.assert(
-  (select c.level from public.students s join public.classrooms c on c.id = s.classroom_id
-    where s.first_name = 'Sara' and s.last_name = 'AlShammari') = 'KG2',
-  'the KG1 girl moved up to KG2');
+  (select c.name from public.students s join public.classrooms c on c.id = s.classroom_id
+    where s.first_name = 'Sara' and s.last_name = 'AlShammari') = 'KG2-A',
+  'the KG1 girl moved up to KG2 and kept her lettered section');
 
 select public.assert(
-  (select c.level from public.students s join public.classrooms c on c.id = s.classroom_id
-    where s.first_name = 'Maryam') = 'KG3',
+  (select c.name from public.students s join public.classrooms c on c.id = s.classroom_id
+    where s.first_name = 'Maryam') = 'KG3-A',
   'a KG2 student moves up inside kindergarten, no gender needed');
 
 select public.assert(

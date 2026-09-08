@@ -307,17 +307,30 @@ as $$
   end;
 $$;
 
-/** KG sections are lettered, graded sections numbered: A→1, B→2, … */
-create or replace function public.next_section(p_section text, p_from_kg boolean)
+/** Sections are lettered in kindergarten and numbered in the grades. */
+drop function if exists public.next_section(text, boolean);
+create function public.next_section(p_section text, p_to_kg boolean)
 returns text
 language sql
 immutable
 as $$
+  -- Sections are lettered in kindergarten and numbered in the grades, so what
+  -- decides the notation is where the student is GOING, not where they came
+  -- from. KG1-A becomes KG2-A; KG3-B becomes Grade 1 section 2.
   select case
-    when not p_from_kg then p_section
-    when upper(p_section) between 'A' and 'F'
-      then (ascii(upper(p_section)) - ascii('A') + 1)::text
-    else '1'
+    when p_to_kg then
+      case
+        when upper(p_section) between 'A' and 'F' then upper(p_section)
+        when p_section ~ '^[1-6]$' then chr(ascii('A') + p_section::int - 1)
+        else 'A'
+      end
+    else
+      case
+        when p_section ~ '^[1-9][0-9]*$' then p_section
+        when upper(p_section) between 'A' and 'F'
+          then (ascii(upper(p_section)) - ascii('A') + 1)::text
+        else '1'
+      end
   end;
 $$;
 
@@ -389,7 +402,7 @@ begin
       v_gender := v_row.class_gender;
     end if;
 
-    v_section := public.next_section(v_row.section, v_row.level like 'KG%');
+    v_section := public.next_section(v_row.section, v_level like 'KG%');
 
     select id into v_target
       from public.classrooms

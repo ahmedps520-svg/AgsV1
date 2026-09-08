@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import { ArrowRight, CircleUser, GraduationCap, Settings2, Star } from "lucide-react";
 import { useI18n } from "@/lib/i18n/provider";
 import { useLoad } from "@/lib/api/use-load";
@@ -136,7 +137,8 @@ export function ClassPicker({ session }: { session: Session }) {
 
   const chip = (active: boolean, disabled = false) =>
     cn(
-      "tabular min-w-12 rounded-xl px-3.5 py-2.5 text-[15px] font-semibold transition",
+      // Tapped on a tablet at the gate, so keep every chip past 44px.
+      "tabular min-w-14 rounded-xl px-4 py-3 text-[15px] font-semibold transition",
       "ring-1 ring-inset focus-visible:outline-2 focus-visible:outline-brand-500",
       disabled && "cursor-not-allowed opacity-35",
       active
@@ -173,7 +175,14 @@ export function ClassPicker({ session }: { session: Session }) {
       </header>
 
       <main id="main" className="mx-auto w-full max-w-4xl px-4 pb-24 pt-8 sm:px-6">
-        <h1 className="text-3xl font-extrabold tracking-[-0.03em] sm:text-4xl">{t("picker.title")}</h1>
+        <motion.h1
+          className="text-3xl font-extrabold tracking-[-0.03em] sm:text-4xl"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        >
+          {t("picker.title")}
+        </motion.h1>
         <p className="mt-1.5 text-[15px] text-[var(--color-muted)]">
           {t(splitBySection ? "picker.subtitle" : "picker.subtitleOneSection")}
         </p>
@@ -224,10 +233,13 @@ export function ClassPicker({ session }: { session: Session }) {
                 {t("picker.kindergarten")}
               </h2>
               <div className="flex flex-wrap gap-2">
-                {kgLevels.map((value) => (
-                  <button
+                {kgLevels.map((value, index) => (
+                  <motion.button
                     key={value}
                     type="button"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.04 + index * 0.02, duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
                     className={chip(level === value)}
                     onClick={() => {
                       setLevel(value);
@@ -236,7 +248,7 @@ export function ClassPicker({ session }: { session: Session }) {
                     }}
                   >
                     {levelLabel(value, locale)}
-                  </button>
+                  </motion.button>
                 ))}
               </div>
                 </>
@@ -251,10 +263,13 @@ export function ClassPicker({ session }: { session: Session }) {
                 {t("picker.grades")}
               </h2>
               <div className="flex flex-wrap gap-2">
-                {gradeLevels.map((value) => (
-                  <button
+                {gradeLevels.map((value, index) => (
+                  <motion.button
                     key={value}
                     type="button"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.06 + index * 0.02, duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
                     className={chip(level === value)}
                     onClick={() => {
                       setLevel(value);
@@ -263,7 +278,7 @@ export function ClassPicker({ session }: { session: Session }) {
                     aria-label={levelLabel(value, locale)}
                   >
                     {value}
-                  </button>
+                  </motion.button>
                 ))}
               </div>
                 </>

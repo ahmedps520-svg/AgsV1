@@ -7,7 +7,13 @@ export function cn(...inputs: ClassValue[]) {
 
 /** "Ahmed AlShehri" -> "AA". Falls back gracefully for single names. */
 export function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
+  // Only letters count. A name carrying a bracket, a hyphen or a title would
+  // otherwise put punctuation in the avatar, which reads as a rendering fault.
+  const parts = name
+    .split(/[\s\u00A0]+/)
+    .map((part) => part.replace(/[^\p{L}\p{N}]/gu, ""))
+    .filter(Boolean);
+
   if (parts.length === 0) return "?";
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();

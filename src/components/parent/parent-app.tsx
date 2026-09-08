@@ -140,13 +140,20 @@ export function ParentApp({
               <h2 className="mb-2.5 text-[12px] font-bold uppercase tracking-wider text-[var(--color-muted)]">{t("parent.inProgress")}</h2>
               <div className="space-y-3">
                 <AnimatePresence initial={false} mode="popLayout">
-                  {active.map((row) => (
+                  {active.map((row, index) => (
                     <RequestCard
                       key={row.id}
                       row={row}
                       now={now}
                       timeZone={timeZone}
                       allowCancel={school?.allow_parent_cancel ?? true}
+                      // One car, one mention of it, however many children.
+                      showVehicle={
+                        Boolean(row.vehicle_description) &&
+                        active.findIndex(
+                          (peer) => peer.vehicle_description === row.vehicle_description,
+                        ) === index
+                      }
                       onCancel={() => setCancelTarget(row)}
                     />
                   ))}
@@ -270,12 +277,15 @@ function RequestCard({
   now,
   timeZone,
   allowCancel,
+  showVehicle,
   onCancel,
 }: {
   row: DismissalQueueRow;
   now: number;
   timeZone: string;
   allowCancel: boolean;
+  /** False on every card but the first: it is the same car for the family. */
+  showVehicle: boolean;
   onCancel: () => void;
 }) {
   const { t, locale } = useI18n();
@@ -294,7 +304,9 @@ function RequestCard({
       <div className="flex items-start gap-3.5">
         <Avatar name={row.student_name} size="md" />
         <div className="min-w-0 flex-1">
-          <h3 className="truncate text-[16.5px] font-bold tracking-[-0.015em]">{row.student_name}</h3>
+          <h3 className="text-balance text-[16.5px] font-bold leading-tight tracking-[-0.015em]">
+            {row.student_name}
+          </h3>
           <p className="truncate text-[13px] text-[var(--color-muted)]">
             <span className="code font-semibold">{row.classroom_name}</span>
           </p>
@@ -304,9 +316,7 @@ function RequestCard({
         </span>
       </div>
 
-      <p className="mt-3 text-[13.5px] font-medium leading-snug">{t("parent.status.calledHint")}</p>
-
-      <div className="mt-3">
+      <div className="mt-3.5">
         <StatusTracker status={row.status} />
       </div>
 
@@ -314,9 +324,9 @@ function RequestCard({
         {t("parent.requestedAt", { time: formatTime(row.called_at ?? row.requested_at, timeZone, locale) })} · {timeAgo(row.requested_at, now, locale)}
       </p>
 
-      {row.vehicle_description || row.note ? (
+      {showVehicle || row.note ? (
         <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-[var(--color-muted)]">
-          {row.vehicle_description ? (
+          {showVehicle ? (
             <span className="inline-flex items-center gap-1.5">
               <Car className="size-3.5" />
               {row.vehicle_description}

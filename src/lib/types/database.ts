@@ -232,6 +232,18 @@ export type Database = {
         Args: Record<string, never>;
         Returns: number;
       };
+      admin_create_account: {
+        Args: {
+          p_email: string;
+          p_full_name: string;
+          p_role: UserRole;
+          p_password?: string | null;
+          p_section_scope?: SectionScope;
+          p_phone?: string | null;
+          p_vehicle?: string | null;
+        };
+        Returns: { id: string; email: string; password: string | null };
+      };
       promote_all_students: {
         Args: Record<string, never>;
         Returns: { promoted: number; graduated: number; skipped: number };

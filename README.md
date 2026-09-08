@@ -27,8 +27,8 @@ and not a demo that only updates the tab you are looking at.
   have their own; the account only ever sees its own half of the school.
 - **Only what has happened shows on a board.** Called in yellow, gone in grey,
   and a count of everyone still in class. Nobody reads thirty names to find two.
-- **Parents do the calling.** Staff can call manually as a fallback when a
-  guardian arrives without the app.
+- **Parents do the calling.** The board has no "call" button at all: a name
+  only appears because a family arrived, so a teacher can trust every tile.
 - **Class codes:** `7b1` is Grade 7, boys, section 1. `7g1` is the girls'
   section. Kindergarten is mixed and lettered: `KG2-A`.
 - **Grades:** KG1–KG3 (mixed), Grades 1–12 (boys and girls in separate sections).
@@ -82,7 +82,7 @@ real Supabase project.
 | Surface | Route | Who | What it does |
 | --- | --- | --- | --- |
 | **Class picker** | `/board` | Teachers, admins | Grade → boys/girls → section; your own classes pinned on top |
-| **Class board** | `/board?c=7b1` | Teachers, admins | Only the names something has happened to: yellow when called, grey when dismissed, and a count of everyone still sitting in class. One tap to dismiss, one to undo, one to call manually. Fullscreen and an optional chime |
+| **Class board** | `/board?c=7b1` | Teachers, admins | Only the names something has happened to: yellow when called, grey when dismissed, and a count of everyone still sitting in class. One tap to dismiss, one to undo. Fullscreen, and a chime that is on by default |
 | **Parent app** | `/parent` | Parents, drivers | Their children only, a big **I'm here**, live status, cancel |
 | **Students** | `/students` | Staff (read), admin (edit) | Roster, class assignment, pickup permissions, and the end-of-year promotion |
 | **Classes** | `/classrooms` | Staff (read), admin (edit) | Class codes, rooms, homeroom teachers |
@@ -150,8 +150,9 @@ in `called`, with `called_at` set, so the tile turns yellow immediately. The
 teacher moves it to `picked_up`, and undo puts it back — keeping the parent's
 original call time and attribution either way.
 
-`staff_call_student()` is the fallback for a guardian who arrived without the
-app; it records the teacher as the caller.
+`staff_call_student()` still exists in the database for a guardian who arrives
+without the app, and records the teacher as the caller — but nothing in the app
+calls it. The board is a record of what parents did, not a control panel.
 
 A partial unique index guarantees **one active call per student**, so a parent
 tapping twice, or a teacher calling an already-called student, is a no-op
@@ -169,9 +170,10 @@ database. That is safe because the security lives *in* the database:
   through a `SECURITY DEFINER` function that re-checks the caller's role, section and
   ownership. A stolen browser token cannot skip a step or call another school's student.
 - The anon key in the bundle is designed to be public. **No service-role key is ever built
-  in.** Creating a login needs that key, so it happens in the `create-account` Edge
-  Function, which verifies for itself that the caller is an active administrator before
-  the privileged client is ever constructed.
+  in.** Creating a login writes to `auth.users`, so it happens in
+  `admin_create_account()` — a SECURITY DEFINER function that verifies for itself that the
+  caller is an active administrator of the school being written to, and forces the new
+  account into that school whatever the browser asked for.
 - A strict Content Security Policy is delivered as a meta tag (GitHub Pages cannot send
   headers): scripts and styles only from this origin, network only to **this project's**
   Supabase host — not to `*.supabase.co`, so a stolen script cannot phone home to
@@ -216,12 +218,12 @@ src/
   lib/brand.ts      AGS name, Arabic name and crest colours
   lib/supabase/     browser client
 supabase/
-  migrations/       schema · security + RLS · workflow · classes · roles · scopes
+  migrations/       schema · RLS · workflow · classes · roles · scopes · accounts
   install.sql       all the migrations in one file, for the SQL editor (generated)
   setup.sql         one-time project bootstrap: school, classes, staff logins
   add-classes.sql   top up the class list when a grade gains a section
+  demo-parent.sql   one parent and three students, to try the app end to end
   seed.sql          small development school (local Supabase only)
-  functions/        create-account Edge Function (the only service-role caller)
   tests/            data-layer test suite + throwaway-cluster runner
 .github/workflows/  build + deploy to GitHub Pages
 scripts/            icon generation from the crest, service-worker prep

@@ -21,10 +21,6 @@ export function SetupNotice() {
       detail: "Creates the school, every class and the four staff logins",
     },
     {
-      label: "Deploy the account function",
-      detail: "supabase functions deploy create-account",
-    },
-    {
       label: "Add the two repository variables",
       detail: "Settings → Secrets and variables → Actions → Variables",
     },

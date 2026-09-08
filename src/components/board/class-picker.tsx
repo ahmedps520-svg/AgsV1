@@ -332,7 +332,12 @@ export function ClassPicker({ session }: { session: Session }) {
                         type="button"
                         disabled={!room}
                         title={room ? code : t("picker.noClass")}
-                        className={cn(chip(section === value, !room), "flex-col gap-0 py-2")}
+                        className={cn(
+                          chip(section === value, !room),
+                          // `flex-col` does nothing without a flex container,
+                          // which is why the code and the count ran together.
+                          "inline-flex flex-col items-center gap-0.5 py-2.5",
+                        )}
                         onClick={() => setSection(value)}
                       >
                         <span className="code text-base">{code}</span>
@@ -349,12 +354,17 @@ export function ClassPicker({ session }: { session: Session }) {
               </section>
             ) : null}
 
-            <div className="mt-9 flex flex-wrap items-center gap-3">
+            <div className="mt-9">
               <Button size="xl" disabled={!chosenRoom} onClick={() => chosenRoom && open(chosenRoom.name)}>
                 <GraduationCap className="size-5" />
                 {t("picker.open")}
                 {chosenCode ? <span className="code ms-1 rounded-lg bg-white/15 px-2 py-0.5 text-base">{chosenCode}</span> : null}
               </Button>
+            </div>
+
+            {/* Far from "Open the board": a mis-tap here costs a teacher their
+                shift, since the password lives with the office. */}
+            <div className="mt-16 border-t border-[var(--color-hairline)] pt-5">
               <SignOutButton />
             </div>
           </>

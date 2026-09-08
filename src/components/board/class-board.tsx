@@ -7,9 +7,7 @@ import {
   CircleUser,
   DoorOpen,
   Maximize2,
-  Megaphone,
   Minimize2,
-  Search,
   Undo2,
   Volume2,
   VolumeX,
@@ -18,7 +16,6 @@ import { useI18n } from "@/lib/i18n/provider";
 import { useLoad } from "@/lib/api/use-load";
 import { getClassroomByCode, getClassRoster, getQueue, schoolToday } from "@/lib/api/queries";
 import {
-  callStudentManuallyAction,
   dismissStudentAction,
   undoDismissAction,
 } from "@/lib/api/mutations";
@@ -32,11 +29,9 @@ import { LanguageToggle } from "@/components/language-toggle";
 import { BoardClock } from "@/components/board/board-clock";
 import { playChime, unlockAudio } from "@/components/board/chime";
 import { useToast } from "@/components/ui/toast";
-import { Modal } from "@/components/ui/modal";
-import { Input } from "@/components/ui/field";
-import { Avatar, LiveDot } from "@/components/ui/primitives";
 import { rememberClass } from "@/components/board/class-picker";
 import { BackLink } from "@/components/layout/back-link";
+import { LiveDot } from "@/components/ui/primitives";
 import type { DismissalQueueRow, StudentRow } from "@/lib/types/database";
 import type { MessageKey } from "@/lib/i18n/dictionary";
 
@@ -56,6 +51,25 @@ interface Tile {
  * same screen serves a teacher's laptop, a tablet by the door, or a wall
  * display signed in as a read-only classroom account.
  */
+const CHIME_KEY = "ags-dismissal:chime";
+
+/** Chime preference for this screen. Missing means on. */
+function recallChime(): boolean {
+  try {
+    return window.localStorage.getItem(CHIME_KEY) !== "off";
+  } catch {
+    return true;
+  }
+}
+
+function rememberChime(on: boolean) {
+  try {
+    window.localStorage.setItem(CHIME_KEY, on ? "on" : "off");
+  } catch {
+    // Preference simply won't persist.
+  }
+}
+
 export function ClassBoard({ session, code }: { session: Session; code: string }) {
   const { t, locale } = useI18n();
   const toast = useToast();
@@ -125,20 +139,33 @@ export function ClassBoard({ session, code }: { session: Session; code: string }
   const onBoard = called.length + dismissed.length;
   const minTile = onBoard <= 2 ? 460 : onBoard <= 6 ? 340 : onBoard <= 12 ? 280 : 230;
 
-  const uncalled = React.useMemo(
-    () =>
-      (roster ?? []).filter(
-        (student) =>
-          !called.some((tile) => tile.student.id === student.id) &&
-          !dismissed.some((tile) => tile.student.id === student.id),
-      ),
-    [roster, called, dismissed],
-  );
 
   /* --------------------------------------------------------------- chime */
 
-  const [soundOn, setSoundOn] = React.useState(false);
+  // On by default: a chime is the whole point of a board nobody is staring at.
+  // The choice is remembered per device, so a teacher who silences one screen
+  // does not silence every other one.
+  const [soundOn, setSoundOn] = React.useState(recallChime);
   const knownCalled = React.useRef<Set<string> | null>(null);
+
+  // Browsers refuse to play audio until the page has been interacted with. A
+  // teacher arrives here by tapping a class, which already counts; a screen
+  // that booted straight to a board URL has to wait for its first touch.
+  React.useEffect(() => {
+    if (!soundOn || unlockAudio()) return;
+
+    const unlock = () => {
+      if (unlockAudio()) remove();
+    };
+    const remove = () => {
+      document.removeEventListener("pointerdown", unlock);
+      document.removeEventListener("keydown", unlock);
+    };
+
+    document.addEventListener("pointerdown", unlock);
+    document.addEventListener("keydown", unlock);
+    return remove;
+  }, [soundOn]);
 
   React.useEffect(() => {
     const current = new Set(called.map((tile) => tile.student.id));
@@ -199,7 +226,6 @@ export function ClassBoard({ session, code }: { session: Session; code: string }
   /* ------------------------------------------------------------- actions */
 
   const [pending, setPending] = React.useState<Set<string>>(new Set());
-  const [callOpen, setCallOpen] = React.useState(false);
 
   async function run(studentId: string, task: () => Promise<{ ok: boolean; error?: string }>, okMessage: string) {
     setPending((current) => new Set(current).add(studentId));
@@ -279,6 +305,7 @@ export function ClassBoard({ session, code }: { session: Session; code: string }
                 const next = !soundOn;
                 if (next && !unlockAudio()) return;
                 setSoundOn(next);
+                rememberChime(next);
                 if (next) playChime();
               }}
               aria-pressed={soundOn}
@@ -321,19 +348,18 @@ export function ClassBoard({ session, code }: { session: Session; code: string }
         <span className="font-medium text-[var(--board-muted)]">
           {t("board.stillInClass", { count: stillInClass })}
         </span>
-
-        <button
-          type="button"
-          onClick={() => setCallOpen(true)}
-          className="ms-auto inline-flex items-center gap-2 rounded-xl bg-white/10 px-3.5 py-2 text-[13px] font-semibold transition hover:bg-white/[0.16]"
-        >
-          <Megaphone className="size-4" />
-          {t("board.callSomeone")}
-        </button>
       </div>
 
       {/* ------------------------------------------------------------- tiles */}
-      <main className="flex-1 px-[3vw] py-[2vh]">
+      {/* A board with two names on it is read from across a room, so let the
+          content sit in the middle of the screen rather than clinging to the
+          top of an otherwise empty wall. Once it fills up, it flows normally. */}
+      <main
+        className={cn(
+          "flex-1 px-[3vw] py-[2vh]",
+          onBoard > 0 && onBoard <= 6 && "flex flex-col justify-center",
+        )}
+      >
         {called.length === 0 && dismissed.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -397,19 +423,6 @@ export function ClassBoard({ session, code }: { session: Session; code: string }
           </div>
         )}
       </main>
-
-      <CallStudentDialog
-        open={callOpen}
-        onClose={() => setCallOpen(false)}
-        students={uncalled}
-        onCall={(student) =>
-          run(
-            student.id,
-            () => callStudentManuallyAction(student.id),
-            t("board.toast.called", { name: name(student) }),
-          )
-        }
-      />
 
       {/* ------------------------------------------------------------ footer */}
       <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 px-[3vw] py-[1.6vh] text-[clamp(0.8rem,1vw,1.05rem)] text-[var(--board-muted)]">
@@ -551,85 +564,5 @@ function BoardSection({
         </AnimatePresence>
       </div>
     </motion.section>
-  );
-}
-
-/**
- * The fallback path: a guardian turns up without the app, so the teacher finds
- * the student by name and calls them by hand.
- */
-function CallStudentDialog({
-  open,
-  onClose,
-  students,
-  onCall,
-}: {
-  open: boolean;
-  onClose: () => void;
-  students: StudentRow[];
-  onCall: (student: StudentRow) => void;
-}) {
-  const { t } = useI18n();
-  const [term, setTerm] = React.useState("");
-
-  const [wasOpen, setWasOpen] = React.useState(open);
-  if (open !== wasOpen) {
-    setWasOpen(open);
-    if (open) setTerm("");
-  }
-
-  const results = React.useMemo(() => {
-    const needle = term.trim().toLowerCase();
-    const pool = [...students].sort(
-      (a, b) =>
-        a.first_name.localeCompare(b.first_name) || a.last_name.localeCompare(b.last_name),
-    );
-    if (!needle) return pool.slice(0, 40);
-    return pool
-      .filter((student) => `${student.first_name} ${student.last_name}`.toLowerCase().includes(needle))
-      .slice(0, 40);
-  }, [students, term]);
-
-  return (
-    <Modal open={open} onClose={onClose} title={t("board.callSomeone")} size="md">
-      <div className="sticky top-0 z-10 -mx-1 bg-[var(--color-surface)] pb-3 pt-1">
-        <div className="relative">
-          <Search className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-[var(--color-muted)]" />
-          <Input
-            data-autofocus
-            value={term}
-            onChange={(event) => setTerm(event.target.value)}
-            placeholder={t("board.callSearch")}
-            aria-label={t("common.search")}
-            className="ps-10"
-          />
-        </div>
-      </div>
-
-      {results.length === 0 ? (
-        <p className="py-10 text-center text-sm text-[var(--color-muted)]">{t("board.callNoMatch")}</p>
-      ) : (
-        <ul className="space-y-1 pb-3">
-          {results.map((student) => (
-            <li key={student.id}>
-              <button
-                type="button"
-                onClick={() => {
-                  onCall(student);
-                  onClose();
-                }}
-                className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-start transition hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
-              >
-                <Avatar name={`${student.first_name} ${student.last_name}`} size="sm" />
-                <span className="min-w-0 flex-1 truncate text-sm font-semibold">
-                  {`${student.first_name} ${student.last_name}`.trim()}
-                </span>
-                <Megaphone className="size-4 shrink-0 text-[var(--color-muted)]" />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Modal>
   );
 }

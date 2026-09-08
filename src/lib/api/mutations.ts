@@ -337,49 +337,34 @@ export async function createAccountAction(
     return fail("Choose a password of at least 10 characters, or leave it blank.");
   }
 
-  // Creating a login needs the service-role key, which can never ship in a
-  // static bundle. `supabase/functions/create-account` holds it instead and
-  // re-checks that the caller is an administrator of this school.
+  // Creating a login writes to `auth.users`, which a browser has no business
+  // doing. `admin_create_account` is a SECURITY DEFINER function that re-checks
+  // for itself that the caller is an active administrator, so the privilege
+  // stays in the database and nothing here has to be trusted.
   try {
-    const supabase = createClient();
-    const { data, error } = await supabase.functions.invoke("create-account", {
-      body: {
-        email,
-        full_name,
-        role,
-        section_scope,
-        ...(password ? { password } : {}),
-        phone: text(formData, "phone") || null,
-        vehicle_description: text(formData, "vehicle_description") || null,
-      },
+    const { data, error } = await createClient().rpc("admin_create_account", {
+      p_email: email,
+      p_full_name: full_name,
+      p_role: role,
+      p_password: password || null,
+      p_section_scope: section_scope,
+      p_phone: text(formData, "phone") || null,
+      p_vehicle: text(formData, "vehicle_description") || null,
     });
 
-    if (error) {
-      const detail = await readFunctionError(error);
-      return fail(
-        detail ??
-          "Could not reach the account service. Deploy supabase/functions/create-account — see DEPLOYMENT.md.",
-      );
-    }
+    if (error) return fail(describeError(error));
 
-    const result = data as { password?: string } | null;
-    return done({ email, password: result?.password, invited: false });
+    const result = data as { email: string; password: string | null } | null;
+    return done({
+      email: result?.email ?? email,
+      password: result?.password ?? undefined,
+      invited: false,
+    });
   } catch (error) {
     return fail(describeError(error));
   }
 }
 
-/** Edge Function errors carry their message in the response body. */
-async function readFunctionError(error: unknown): Promise<string | null> {
-  const context = (error as { context?: { json?: () => Promise<unknown> } }).context;
-  if (!context?.json) return (error as Error)?.message ?? null;
-  try {
-    const body = (await context.json()) as { error?: string };
-    return body?.error ?? null;
-  } catch {
-    return (error as Error)?.message ?? null;
-  }
-}
 
 /* ------------------------------------------------------- end of the year -- */
 

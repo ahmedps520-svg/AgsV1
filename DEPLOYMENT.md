@@ -123,19 +123,14 @@ now talks to your database.
 Sign in as the administrator and set up **Settings** (timezone first — it drives every
 clock), **Classes**, and **Students**.
 
-**Logins** are created from the **People** page, which calls the `create-account`
-Edge Function. Deploy it once:
+**Logins** are created from the **People** page — administrators only, and
+nothing extra to deploy. Writing to `auth.users` needs a privilege a browser
+must never hold, so the app calls `admin_create_account()`, a SECURITY DEFINER
+function that re-checks for itself that the caller is an active administrator
+of the school being written to. A teacher account calling it is refused.
 
-```bash
-npx supabase functions deploy create-account
-```
-
-It needs no extra configuration — Supabase injects `SUPABASE_URL`,
-`SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` into the function's own
-environment. That key is why account creation lives there and not in the app:
-a static site is delivered to every visitor, so it can never hold one. The
-function re-reads the caller's identity with the caller's own token and refuses
-anyone who is not an active administrator of the school being written to.
+Leave the password blank and a one-time password is generated and shown once;
+type one to set a shared password yourself.
 
 For a parent or driver, creating the login is only half the job: open
 **Students → Edit → Who may pick up** and link them to their children — *that*
@@ -200,7 +195,7 @@ headers, send `Content-Security-Policy: frame-ancestors 'none'` and
 | Symptom | Cause | Fix |
 | --- | --- | --- |
 | Sign-in says the database isn't connected | Variables not set, or workflow not re-run | Check *Actions → Variables*, then re-run the workflow |
-| "Only a school administrator can create accounts" | Signed in as a teacher, or the Edge Function is not deployed | Sign in as the admin; `npx supabase functions deploy create-account` |
+| "Only a school administrator can create accounts" | Signed in as a teacher, not the administrator | Sign in as `admin@ags.edu.sa` |
 | A teacher can't find their class | That account is scoped to the other building | Use the login for their section, or `dismissal.kg@…` for kindergarten |
 | "Couldn't load the queue" | Schema not applied | Run `supabase/install.sql` in the SQL editor, or `npx supabase db push` |
 | "AGS Dismissal is already installed" | `install.sql` run a second time | Nothing was changed. Go on to `setup.sql` |

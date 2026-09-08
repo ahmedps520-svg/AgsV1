@@ -489,5 +489,78 @@ select public.assert(
   'the student with no recorded gender stays put rather than being misplaced');
 reset role;
 
+
+\echo '--- 25. Only an administrator can create a login ---'
+reset role;
+select public.act_as(:'teacher');
+set role authenticated;
+
+do $$
+begin
+  perform public.admin_create_account('nope@example.com', 'Nope', 'admin', 'LongEnough123');
+  raise exception 'ASSERTION FAILED: a teacher created an account';
+exception
+  when insufficient_privilege then
+    raise notice '  ok: a teacher cannot create an account';
+end $$;
+
+reset role;
+select public.act_as(:'parent');
+set role authenticated;
+
+do $$
+begin
+  perform public.admin_create_account('nope2@example.com', 'Nope', 'parent', 'LongEnough123');
+  raise exception 'ASSERTION FAILED: a parent created an account';
+exception
+  when insufficient_privilege then
+    raise notice '  ok: a parent cannot create an account';
+end $$;
+
+reset role;
+select public.act_as(:'admin');
+set role authenticated;
+
+select public.assert(
+  (public.admin_create_account('newteacher@ags.edu.sa', 'New Teacher', 'staff',
+                               'LongEnough123', 'girls') ->> 'password') is null,
+  'a chosen password is not echoed back');
+
+select public.assert(
+  (select section_scope from public.profiles where email = 'newteacher@ags.edu.sa') = 'girls',
+  'the new teacher is confined to the section it was given');
+
+select public.assert(
+  (select school_id from public.profiles where email = 'newteacher@ags.edu.sa')
+    = '11111111-1111-4111-8111-111111111111',
+  'and lands in the administrator''s own school');
+
+select public.assert(
+  length(public.admin_create_account('temp@ags.edu.sa', 'Temp', 'parent') ->> 'password') > 6,
+  'omitting the password returns a generated one');
+
+select public.assert(
+  (select section_scope from public.profiles where email = 'temp@ags.edu.sa') = 'all',
+  'a parent is never confined to a section');
+
+do $$
+begin
+  perform public.admin_create_account('newteacher@ags.edu.sa', 'Twice', 'staff', 'LongEnough123');
+  raise exception 'ASSERTION FAILED: duplicate email accepted';
+exception
+  when unique_violation then
+    raise notice '  ok: the same email cannot be used twice';
+end $$;
+
+do $$
+begin
+  perform public.admin_create_account('shortpw@ags.edu.sa', 'Short', 'staff', 'abc');
+  raise exception 'ASSERTION FAILED: short password accepted';
+exception
+  when others then
+    raise notice '  ok: a short password is rejected (%)', sqlerrm;
+end $$;
+reset role;
+
 \echo ''
 \echo '================ ALL DATA-LAYER TESTS PASSED ================'

@@ -225,8 +225,22 @@ function CreatePersonModal({ open, onClose }: { open: boolean; onClose: () => vo
               </Select>
             </Field>
           ) : (
-            <input type="hidden" name="section_scope" value={role === "admin" ? "all" : "all"} />
+            <input type="hidden" name="section_scope" value="all" />
           )}
+
+          <Field label={t("people.password")} htmlFor="password" hint={t("people.passwordHint")}>
+            <Input
+              id="password"
+              name="password"
+              type="text"
+              autoComplete="off"
+              minLength={10}
+              maxLength={72}
+              dir="ltr"
+              placeholder={t("people.passwordPlaceholder")}
+            />
+          </Field>
+
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label={t("people.phone")} htmlFor="phone">
               <Input id="phone" name="phone" type="tel" maxLength={40} dir="ltr" />

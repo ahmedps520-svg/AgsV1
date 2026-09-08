@@ -327,9 +327,15 @@ export async function createAccountAction(
   const full_name = text(formData, "full_name");
   const role = text(formData, "role") as UserRole;
   const section_scope = (text(formData, "section_scope") || "all") as SectionScope;
+  // Blank means "invent one". A shared section login needs a chosen password,
+  // because a whole staff room has to be told it.
+  const password = text(formData, "password");
 
   if (!full_name) return fail("Enter a full name.");
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fail("Enter a valid email address.");
+  if (password && password.length < 10) {
+    return fail("Choose a password of at least 10 characters, or leave it blank.");
+  }
 
   // Creating a login needs the service-role key, which can never ship in a
   // static bundle. `supabase/functions/create-account` holds it instead and
@@ -342,6 +348,7 @@ export async function createAccountAction(
         full_name,
         role,
         section_scope,
+        ...(password ? { password } : {}),
         phone: text(formData, "phone") || null,
         vehicle_description: text(formData, "vehicle_description") || null,
       },

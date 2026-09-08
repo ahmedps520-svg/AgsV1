@@ -52,9 +52,13 @@ updates. Step 2 is what makes it usable.
 
    **From a phone, or any browser** — open
    [`supabase/install.sql`](./supabase/install.sql), copy the whole file, paste
-   it into the project's **SQL editor** and run it. Nothing in it needs
-   editing. Run it once: it stops itself with "already installed" if the schema
-   is already there, without changing anything.
+   it into the project's **SQL editor** and run it. Nothing in it needs editing.
+
+   **Check that it ends with a row reading `installed`.** The file is ~70 KB and
+   a paste can be cut short; that row is the proof the whole thing arrived. If
+   you do not see it, copy the file again and re-run — the guard at the top
+   clears a half-finished install and starts over. Once it is complete, running
+   it again stops with "already installed" and changes nothing.
 
    **From a computer with the CLI:**
 
@@ -199,6 +203,7 @@ headers, send `Content-Security-Policy: frame-ancestors 'none'` and
 | A teacher can't find their class | That account is scoped to the other building | Use the login for their section, or `dismissal.kg@…` for kindergarten |
 | "Couldn't load the queue" | Schema not applied | Run `supabase/install.sql` in the SQL editor, or `npx supabase db push` |
 | "AGS Dismissal is already installed" | `install.sql` run a second time | Nothing was changed. Go on to `setup.sql` |
+| `relation "public.schools" does not exist` | `install.sql` did not finish — usually a paste cut short | Re-run `install.sql` and check it ends with a row reading `installed` |
 | Sign-in rejects the shared password | `setup.sql` not run, or run before the schema | Run `install.sql` first, then `setup.sql` |
 | Pill stuck on **Reconnecting** | `dismissal_requests` not in the realtime publication, or a proxy blocking websockets | Check *Database → Replication*; allow `wss://` to your project host. The board still refreshes on a timer meanwhile |
 | Parent sees no students | No guardian links | *Students → Edit → Who may pick up* |

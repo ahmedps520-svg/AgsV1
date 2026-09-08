@@ -48,6 +48,19 @@ declare
   v_code     text;
   v_id       uuid;
 begin
+  -- The schema has to be there first. Without this check the failure is a raw
+  -- 'relation "public.schools" does not exist', which says nothing about what
+  -- to do next.
+  if to_regclass('public.schools') is null
+     or not exists (
+       select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+        where n.nspname = 'public' and p.proname = 'promote_all_students'
+     ) then
+    raise exception
+      'The AGS Dismissal schema is not installed yet. Run supabase/install.sql in this SQL editor first, check it ends with a row saying "installed", then run this file.'
+      using errcode = '42P01';
+  end if;
+
   -- ---------------------------------------------------------------- school --
   select id into v_school from public.schools where slug = 'ags';
 
@@ -113,16 +126,26 @@ begin
       );
     end if;
 
-    -- The on_auth_user_created trigger writes the profile. Make sure the
-    -- school, role and section are right whether the row is new or not.
-    update public.profiles
-       set school_id     = v_school,
-           role          = v_user.role::public.user_role,
-           full_name     = v_user.full_name,
-           email         = lower(v_user.email),
-           section_scope = v_user.scope::public.section_scope,
-           is_active     = true
-     where id = v_id;
+    -- The on_auth_user_created trigger normally writes the profile, but a
+    -- hosted project may not let this role add a trigger to auth.users. Write
+    -- it here too, so the account works either way.
+    insert into public.profiles (id, school_id, role, full_name, email, section_scope, is_active)
+    values (
+      v_id,
+      v_school,
+      v_user.role::public.user_role,
+      v_user.full_name,
+      lower(v_user.email),
+      v_user.scope::public.section_scope,
+      true
+    )
+    on conflict (id) do update
+      set school_id     = excluded.school_id,
+          role          = excluded.role,
+          full_name     = excluded.full_name,
+          email         = excluded.email,
+          section_scope = excluded.section_scope,
+          is_active     = true;
   end loop;
 
   -- ------------------------------------------------------------ classrooms --
@@ -153,3 +176,10 @@ begin
     (select count(*) from public.classrooms where school_id = v_school);
 end;
 $$;
+
+-- If you do not see this row, the paste was cut short — run the file again.
+select
+  (select name from public.schools where slug = 'ags')                as school,
+  (select count(*) from public.classrooms)                            as classes,
+  (select count(*) from public.profiles where role in ('admin','staff')) as staff_logins,
+  'Now add the two variables in GitHub and re-run the deploy workflow' as next_step;

@@ -101,7 +101,7 @@ Deno.serve(async (request) => {
   });
 
   const password = chosen ?? temporaryPassword();
-  const { error: createError } = await admin.auth.admin.createUser({
+  const { data: createdUser, error: createError } = await admin.auth.admin.createUser({
     email,
     password,
     email_confirm: true,
@@ -120,19 +120,26 @@ Deno.serve(async (request) => {
     return json({ error: message }, 400);
   }
 
-  // The handle_new_user trigger builds the profile; fill in what only this
-  // form knows.
-  const { error: updateError } = await admin
-    .from("profiles")
-    .update({
+  // The handle_new_user trigger normally builds the profile, but a hosted
+  // project may not let the schema add a trigger to auth.users. Upsert rather
+  // than update, so a missing trigger cannot leave a login with no profile —
+  // which would sign in and then show an empty app.
+  const newId = createdUser?.user?.id;
+  if (!newId) return json({ error: "The login was created but its id came back empty." }, 500);
+
+  const { error: updateError } = await admin.from("profiles").upsert(
+    {
+      id: newId,
       school_id: caller.school_id,
       role,
       section_scope: role === "staff" ? scope : "all",
       full_name: fullName,
+      email,
       phone: body.phone ? String(body.phone) : null,
       vehicle_description: body.vehicle_description ? String(body.vehicle_description) : null,
-    })
-    .eq("email", email);
+    },
+    { onConflict: "id" },
+  );
 
   if (updateError) return json({ error: updateError.message }, 400);
 

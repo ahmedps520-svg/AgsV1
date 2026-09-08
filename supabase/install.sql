@@ -27,22 +27,65 @@
 -- ===========================================================================
 
 -- ###########################################################################
--- Guard: has this already been run?
+-- Guard: is this a fresh project, a finished one, or an interrupted paste?
 --
--- The Supabase SQL editor runs the whole paste as one transaction, so stopping
--- here leaves the database exactly as it was.
+-- This file is ~70 KB. A phone or a flaky editor can cut a paste short, and
+-- what that used to leave behind was unrecoverable: too far in to install
+-- cleanly, not far enough to be usable. So:
+--
+--   • finished already  -> stop, change nothing
+--   • cut short         -> clear the remains and install properly
+--   • cut short, but a school exists -> stop; that is real data, not debris
+--
+-- The SQL editor runs the whole paste as one transaction, so stopping here
+-- leaves the database exactly as it was.
 -- ###########################################################################
 
 do $install_guard$
+declare
+  v_schools bigint := 0;
 begin
+  -- promote_all_students() is the last thing this file creates, so its
+  -- presence is what proves the whole paste arrived.
   if exists (
-    select 1 from pg_tables
-     where schemaname = 'public' and tablename = 'dismissal_requests'
+    select 1
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = 'promote_all_students'
   ) then
     raise exception
       'AGS Dismissal is already installed. Nothing was changed — carry on with supabase/setup.sql.'
       using errcode = '42P07';
   end if;
+
+  if to_regclass('public.schools') is not null then
+    execute 'select count(*) from public.schools' into v_schools;
+    if v_schools > 0 then
+      raise exception
+        'AGS Dismissal is only half installed but already holds a school. Nothing was changed — do not re-run this file; ask before going further.'
+        using errcode = '42P07';
+    end if;
+  end if;
+
+  -- Debris from a cut-short paste. Nothing can have been stored in it.
+  drop view if exists public.dismissal_queue cascade;
+  drop table if exists
+    public.dismissal_events,
+    public.dismissal_requests,
+    public.guardians,
+    public.students,
+    public.classrooms,
+    public.profiles,
+    public.schools
+    cascade;
+  drop type if exists
+    public.user_role,
+    public.user_role_legacy,
+    public.dismissal_status,
+    public.request_source,
+    public.class_gender,
+    public.section_scope
+    cascade;
 end
 $install_guard$;
 
@@ -1959,3 +2002,17 @@ begin
   return new;
 end;
 $$;
+
+-- ###########################################################################
+-- Proof the paste arrived in one piece.
+--
+-- The SQL editor shows the result of the last statement. If you do not see a
+-- row saying "installed", the paste was cut short — copy the file again and
+-- re-run it; the guard at the top will clear the partial install for you.
+-- ###########################################################################
+
+select
+  'installed' as ags_dismissal,
+  (select count(*) from pg_tables where schemaname = 'public') as tables,
+  (select count(*) from pg_policies where schemaname = 'public') as policies,
+  'Now run supabase/setup.sql' as next_step;
